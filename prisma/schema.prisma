@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum RegistrationStatus {
+  PENDING
+  LINKED
+  TICKET_SENT
+  CHECKED_IN
+  CANCELLED
+}
+
+enum ScanResult {
+  VALID
+  DUPLICATE
+  INVALID
+  REVOKED
+}
+
+model Event {
+  id            String         @id @default(cuid())
+  code          String         @unique @db.VarChar(64)
+  name          String         @db.VarChar(191)
+  description   String?        @db.Text
+  venue         String?        @db.VarChar(191)
+  startAt       DateTime
+  endAt         DateTime?
+  isActive      Boolean        @default(true)
+  registrations Registration[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([isActive, startAt])
+  @@index([startAt])
+}
+
+model Participant {
+  id                String         @id @default(cuid())
+  fullName          String         @db.VarChar(191)
+  phoneNumber       String         @db.VarChar(40)
+  email             String?        @db.VarChar(191)
+  organization      String?        @db.VarChar(191)
+  notes             String?        @db.Text
+  telegramUserId    String?        @unique @db.VarChar(64)
+  telegramChatId    String?        @db.VarChar(64)
+  telegramUsername  String?        @db.VarChar(191)
+  telegramFirstName String?        @db.VarChar(191)
+  telegramLastName  String?        @db.VarChar(191)
+  telegramLinkedAt  DateTime?
+  registrations     Registration[]
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([phoneNumber])
+  @@index([email])
+  @@index([telegramChatId])
+}
+
+model Registration {
+  id                 String              @id @default(cuid())
+  eventId            String
+  participantId      String
+  status             RegistrationStatus  @default(PENDING)
+  source             String?             @db.VarChar(64)
+  event              Event               @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  participant        Participant         @relation(fields: [participantId], references: [id], onDelete: Restrict)
+  ticket             Ticket?
+  telegramLinkTokens TelegramLinkToken[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  // Business rule: one participant can only register once per event.
+  @@unique([eventId, participantId])
+  @@index([eventId, status])
+  @@index([participantId])
+  @@index([status])
+}
+
+model TelegramLinkToken {
+  id             String       @id @default(cuid())
+  registrationId String
+  token          String       @unique @db.VarChar(191)
+  expiresAt      DateTime
+  consumedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  registration   Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  @@index([registrationId])
+  @@index([expiresAt])
+  @@index([consumedAt])
+}
+
+model Ticket {
+  id             String       @id @default(cuid())
+  registrationId String       @unique
+  ticketCode     String       @unique @db.VarChar(64)
+  qrPayload      String       @db.Text
+  qrImagePath    String?      @db.VarChar(255)
+  sentAt         DateTime?
+  checkedInAt    DateTime?
+  revokedAt      DateTime?
+  registration   Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  scanLogs       ScanLog[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([checkedInAt])
+  @@index([revokedAt])
+}
+
+model ScanLog {
+  id            String     @id @default(cuid())
+  ticketId      String?
+  scannedCode   String     @db.Text
+  result        ScanResult
+  operatorLabel String?    @db.VarChar(120)
+  deviceLabel   String?    @db.VarChar(120)
+  scannedAt     DateTime   @default(now())
+  notes         String?    @db.Text
+  ticket        Ticket?    @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@index([result])
+  @@index([scannedAt])
+}
