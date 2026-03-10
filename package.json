@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run db:deploy && npm run db:seed && next build",
+    "build": "npm run db:deploy && npm run db:seed && next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --test src/lib/**/*.test.ts src/server/**/*.test.ts",
