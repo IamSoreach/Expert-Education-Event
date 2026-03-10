@@ -1,23 +1,23 @@
 -- DropForeignKey
-ALTER TABLE `checkinlog` DROP FOREIGN KEY `CheckInLog_registrationId_fkey`;
+ALTER TABLE `CheckInLog` DROP FOREIGN KEY `CheckInLog_registrationId_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `checkinlog` DROP FOREIGN KEY `CheckInLog_ticketId_fkey`;
+ALTER TABLE `CheckInLog` DROP FOREIGN KEY `CheckInLog_ticketId_fkey`;
 
 -- DropIndex
-DROP INDEX `Registration_email_idx` ON `registration`;
+DROP INDEX `Registration_email_idx` ON `Registration`;
 
 -- DropIndex
-DROP INDEX `Registration_telegramLinkToken_key` ON `registration`;
+DROP INDEX `Registration_telegramLinkToken_key` ON `Registration`;
 
 -- DropIndex
-DROP INDEX `Registration_telegramUserId_idx` ON `registration`;
+DROP INDEX `Registration_telegramUserId_idx` ON `Registration`;
 
 -- DropIndex
-DROP INDEX `Ticket_qrPayload_key` ON `ticket`;
+DROP INDEX `Ticket_qrPayload_key` ON `Ticket`;
 
 -- AlterTable
-ALTER TABLE `registration` DROP COLUMN `email`,
+ALTER TABLE `Registration` DROP COLUMN `email`,
     DROP COLUMN `eventCode`,
     DROP COLUMN `fullName`,
     DROP COLUMN `notes`,
@@ -34,14 +34,14 @@ ALTER TABLE `registration` DROP COLUMN `email`,
     MODIFY `status` ENUM('PENDING', 'LINKED', 'TICKET_SENT', 'CHECKED_IN', 'CANCELLED') NOT NULL DEFAULT 'PENDING';
 
 -- AlterTable
-ALTER TABLE `ticket` DROP COLUMN `checkedInBy`,
+ALTER TABLE `Ticket` DROP COLUMN `checkedInBy`,
     ADD COLUMN `qrImagePath` VARCHAR(255) NULL,
     ADD COLUMN `revokedAt` DATETIME(3) NULL,
     MODIFY `ticketCode` VARCHAR(64) NOT NULL,
     MODIFY `qrPayload` TEXT NOT NULL;
 
 -- DropTable
-DROP TABLE `checkinlog`;
+DROP TABLE `CheckInLog`;
 
 -- CreateTable
 CREATE TABLE `Event` (
