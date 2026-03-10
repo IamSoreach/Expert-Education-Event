@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run db:deploy && npm run db:seed && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --test src/lib/**/*.test.ts src/server/**/*.test.ts",
+    "hostinger:build": "npm run build",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
