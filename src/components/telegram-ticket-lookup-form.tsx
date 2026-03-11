@@ -132,30 +132,32 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
 
       <section className="px-4 py-10">
         <div className="mx-auto grid w-full max-w-2xl gap-4">
-          <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Telegram Ticket Lookup</p>
-            <h1 className="mt-2 text-2xl font-semibold text-slate-900">{eventName}</h1>
-            <p className="mt-2 text-sm text-slate-600">
+          <header className="theme-card p-6">
+            <p className="text-xs uppercase tracking-[0.24em] text-[var(--brand-primary)]">
+              Telegram Ticket Lookup
+            </p>
+            <h1 className="mt-2 text-4xl font-semibold text-[var(--brand-ink)]">{eventName}</h1>
+            <p className="mt-2 text-sm text-[var(--brand-gray)]">
               Enter the same phone number used during registration. We will send your QR ticket to this chat.
             </p>
           </header>
 
           <form
             onSubmit={handleSubmit}
-            className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+            className="theme-card grid gap-4 p-6"
           >
             {telegramContext.isWebApp ? (
-              <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+              <p className="rounded-xl border border-[var(--brand-secondary)]/40 bg-[var(--brand-secondary)]/10 px-3 py-2 text-xs text-[var(--brand-ink)]">
                 Telegram session detected.
               </p>
             ) : (
-              <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <p className="rounded-xl border border-[var(--brand-secondary)]/40 bg-[var(--brand-secondary)]/10 px-3 py-2 text-xs text-[var(--brand-ink)]">
                 Open this page from the bot command inside Telegram.
               </p>
             )}
 
             <label className="grid gap-1">
-              <span className="text-sm font-medium text-slate-700">
+              <span className="text-sm font-semibold text-[var(--brand-ink)]">
                 Phone Number <span className="text-rose-600">*</span>
               </span>
               <input
@@ -164,7 +166,7 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
                 required
                 inputMode="tel"
                 placeholder="+855 12 345 678"
-                className="rounded-xl border border-slate-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                className="theme-input px-3 py-2"
               />
             </label>
 
@@ -185,7 +187,7 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
             <button
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+              className="theme-button-primary inline-flex items-center justify-center px-4 py-2.5"
             >
               {isSubmitting ? "Sending..." : "Send My Ticket"}
             </button>

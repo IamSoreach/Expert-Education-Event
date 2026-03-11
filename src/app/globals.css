@@ -1,15 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f1f5f9;
-  --foreground: #0f172a;
+  --background: #eef4ff;
+  --foreground: #334770;
   --card: #ffffff;
+  --brand-primary: #1877f2;
+  --brand-secondary: #00cdc4;
+  --brand-ink: #334770;
+  --brand-deep: #063263;
+  --brand-muted: #5f7ca6;
+  --brand-border: #c7d7f0;
+  --brand-gray: #3f5b84;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Bahnschrift", "Segoe UI", "Trebuchet MS", sans-serif;
+  --font-sans: var(--font-manrope), "Gilroy", "Avenir Next", "Segoe UI", "Trebuchet MS",
+    sans-serif;
   --font-mono: "Consolas", "Courier New", monospace;
 }
 
@@ -17,4 +25,61 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+a {
+  color: inherit;
+}
+
+.theme-card {
+  border: 1px solid var(--brand-border);
+  border-radius: 1.5rem;
+  background: var(--card);
+  box-shadow: 0 12px 28px -22px rgba(6, 50, 99, 0.28);
+}
+
+.theme-input {
+  border: 1px solid var(--brand-border);
+  border-radius: 0.8rem;
+  color: var(--brand-ink);
+  outline: none;
+  transition: border-color 120ms ease;
+}
+
+.theme-input::placeholder {
+  color: var(--brand-muted);
+}
+
+.theme-input:focus {
+  border-color: var(--brand-primary);
+}
+
+.theme-button-primary {
+  border-radius: 0.8rem;
+  background: var(--brand-primary);
+  color: #fff;
+  font-weight: 600;
+  transition: filter 120ms ease, opacity 120ms ease;
+}
+
+.theme-button-primary:hover {
+  filter: brightness(0.95);
+}
+
+.theme-button-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.theme-button-secondary {
+  border: 1px solid var(--brand-border);
+  border-radius: 0.8rem;
+  background: #fff;
+  color: var(--brand-ink);
+  font-weight: 600;
+  transition: background-color 120ms ease;
+}
+
+.theme-button-secondary:hover {
+  background: var(--background);
 }

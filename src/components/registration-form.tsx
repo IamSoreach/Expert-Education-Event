@@ -80,6 +80,7 @@ export function RegistrationForm({
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedFlow, setSelectedFlow] = useState<"choose" | "register">("choose");
   const [telegramContext, setTelegramContext] = useState<TelegramContext>({
     isWebApp: false,
     initData: null,
@@ -242,23 +243,79 @@ export function RegistrationForm({
     }
   }
 
+  function handleCheckInClick() {
+    router.push(`/telegram/check-in/${encodeURIComponent(eventCode)}`);
+  }
+
+  if (selectedFlow === "choose") {
+    return (
+      <>
+        <Script src="https://telegram.org/js/telegram-web-app.js" strategy="afterInteractive" />
+
+        <section className="theme-card grid gap-4 p-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-[var(--brand-primary)]">Choose Flow</p>
+            <h2 className="mt-2 text-2xl font-semibold text-[var(--brand-ink)]">What do you want to do?</h2>
+            <p className="mt-2 text-sm text-[var(--brand-gray)]">
+              Start a new registration or open ticket check-in lookup.
+            </p>
+          </div>
+
+          <div className="grid gap-3">
+            <button
+              type="button"
+              onClick={() => setSelectedFlow("register")}
+              className="theme-button-primary inline-flex items-center justify-center px-4 py-2.5"
+            >
+              New Registration
+            </button>
+            <button
+              type="button"
+              onClick={handleCheckInClick}
+              className="theme-button-secondary inline-flex items-center justify-center px-4 py-2.5"
+            >
+              Check-in
+            </button>
+          </div>
+
+          {entryPoint !== "telegram" ? (
+            <p className="rounded-xl border border-[var(--brand-secondary)]/35 bg-[var(--brand-secondary)]/10 px-3 py-2 text-xs text-[var(--brand-ink)]">
+              Check-in works best when this page is opened from Telegram.
+            </p>
+          ) : null}
+        </section>
+      </>
+    );
+  }
+
   return (
     <>
       <Script src="https://telegram.org/js/telegram-web-app.js" strategy="afterInteractive" />
 
-      <form onSubmit={handleSubmit} className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <form
+        onSubmit={handleSubmit}
+        className="theme-card grid gap-4 p-6"
+      >
+        <button
+          type="button"
+          onClick={() => setSelectedFlow("choose")}
+          className="w-fit rounded-lg border border-[var(--brand-border)] px-3 py-1.5 text-xs font-semibold text-[var(--brand-gray)] transition hover:bg-[var(--background)]"
+        >
+          Back to Options
+        </button>
+
         {telegramContext.isWebApp ? (
-          <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+          <p className="rounded-xl border border-[var(--brand-secondary)]/40 bg-[var(--brand-secondary)]/10 px-3 py-2 text-xs text-[var(--brand-ink)]">
             Telegram Mini App session detected. We will try to link Telegram automatically after registration.
           </p>
         ) : entryPoint === "telegram" ? (
-          <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <p className="rounded-xl border border-[var(--brand-secondary)]/40 bg-[var(--brand-secondary)]/10 px-3 py-2 text-xs text-[var(--brand-ink)]">
             Open this page inside Telegram for automatic account linking.
           </p>
         ) : null}
 
         <div className="grid gap-1">
-          <label htmlFor="fullName" className="text-sm font-medium text-slate-700">
+          <label htmlFor="fullName" className="text-sm font-semibold text-[var(--brand-ink)]">
             Full name <span className="text-rose-600">*</span>
           </label>
           <input
@@ -266,14 +323,14 @@ export function RegistrationForm({
             required
             value={formState.fullName}
             onChange={(event) => setField("fullName", event.target.value)}
-            className="rounded-xl border border-slate-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            className="theme-input px-3 py-2"
             placeholder="Your full name"
           />
           {errors.fullName ? <p className="text-xs text-rose-600">{errors.fullName}</p> : null}
         </div>
 
         <div className="grid gap-1">
-          <label htmlFor="phoneNumber" className="text-sm font-medium text-slate-700">
+          <label htmlFor="phoneNumber" className="text-sm font-semibold text-[var(--brand-ink)]">
             Phone number <span className="text-rose-600">*</span>
           </label>
           <input
@@ -281,7 +338,7 @@ export function RegistrationForm({
             required
             value={formState.phoneNumber}
             onChange={(event) => setField("phoneNumber", event.target.value)}
-            className="rounded-xl border border-slate-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            className="theme-input px-3 py-2"
             placeholder="+1 555 123 4567"
             inputMode="tel"
           />
@@ -289,7 +346,7 @@ export function RegistrationForm({
         </div>
 
         <div className="grid gap-1">
-          <label htmlFor="email" className="text-sm font-medium text-slate-700">
+          <label htmlFor="email" className="text-sm font-semibold text-[var(--brand-ink)]">
             Email (optional)
           </label>
           <input
@@ -297,21 +354,21 @@ export function RegistrationForm({
             type="email"
             value={formState.email}
             onChange={(event) => setField("email", event.target.value)}
-            className="rounded-xl border border-slate-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            className="theme-input px-3 py-2"
             placeholder="name@example.com"
           />
           {errors.email ? <p className="text-xs text-rose-600">{errors.email}</p> : null}
         </div>
 
         <div className="grid gap-1">
-          <label htmlFor="organization" className="text-sm font-medium text-slate-700">
+          <label htmlFor="organization" className="text-sm font-semibold text-[var(--brand-ink)]">
             Organization (optional)
           </label>
           <input
             id="organization"
             value={formState.organization}
             onChange={(event) => setField("organization", event.target.value)}
-            className="rounded-xl border border-slate-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            className="theme-input px-3 py-2"
             placeholder="Company or group"
           />
           {errors.organization ? (
@@ -320,7 +377,7 @@ export function RegistrationForm({
         </div>
 
         <div className="grid gap-1">
-          <label htmlFor="notes" className="text-sm font-medium text-slate-700">
+          <label htmlFor="notes" className="text-sm font-semibold text-[var(--brand-ink)]">
             Notes (optional)
           </label>
           <textarea
@@ -328,7 +385,7 @@ export function RegistrationForm({
             rows={3}
             value={formState.notes}
             onChange={(event) => setField("notes", event.target.value)}
-            className="rounded-xl border border-slate-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            className="theme-input px-3 py-2"
             placeholder="Anything organizers should know"
           />
           {errors.notes ? <p className="text-xs text-rose-600">{errors.notes}</p> : null}
@@ -341,7 +398,7 @@ export function RegistrationForm({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="mt-2 inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+          className="theme-button-primary mt-2 inline-flex items-center justify-center px-4 py-2.5"
         >
           {isSubmitting ? "Submitting..." : "Continue"}
         </button>
