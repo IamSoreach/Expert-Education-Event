@@ -10,6 +10,15 @@ export function FloatingHomeButton() {
     return null;
   }
 
+  const hideOnPaths = [
+    "/register/",
+    "/telegram/register/",
+  ];
+
+  if (hideOnPaths.some((prefix) => pathname.startsWith(prefix))) {
+    return null;
+  }
+
   return (
     <Link
       href="/"
