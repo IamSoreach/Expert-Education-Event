@@ -5,6 +5,8 @@ import { createRateLimitHeaders, createRateLimitKey, consumeRateLimit } from "@/
 import { getRequestIdentifier } from "@/lib/request";
 import { linkRegistrationToTelegram } from "@/lib/registrations";
 import {
+  buildTelegramMiniAppTicketUrl,
+  extractTelegramCommand,
   extractStartToken,
   sendTelegramMessage,
   TelegramUpdate,
@@ -64,6 +66,37 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ ok: true });
   }
 
+  const command = extractTelegramCommand(message.text);
+  if (command === "checkin" || command === "ticket" || command === "myticket") {
+    const miniAppUrl = buildTelegramMiniAppTicketUrl();
+    await sendTelegramMessage(
+      message.chat.id,
+      `Open the ticket page, enter your phone number, and we will send your QR ticket in this chat.\n\n${miniAppUrl}`,
+      {
+        disableWebPagePreview: true,
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              {
+                text: "Open Ticket Page",
+                web_app: {
+                  url: miniAppUrl,
+                },
+              },
+            ],
+          ],
+        },
+      },
+    );
+
+    logger.info("telegram_webhook_ticket_command", {
+      requestId,
+      chatId: message.chat.id,
+      command,
+    });
+    return Response.json({ ok: true });
+  }
+
   const startToken = extractStartToken(message.text);
   if (startToken === null) {
     return Response.json({ ok: true });
@@ -72,7 +105,7 @@ export async function POST(req: Request): Promise<Response> {
   if (startToken.length === 0) {
     await sendTelegramMessage(
       message.chat.id,
-      "Please open your registration confirmation page and tap the Telegram connect button.",
+      "Please open your registration confirmation page and tap the Telegram connect button. If you already registered, send /checkin to request your ticket by phone number.",
     );
     return Response.json({ ok: true });
   }

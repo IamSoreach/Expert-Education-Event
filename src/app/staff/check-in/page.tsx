@@ -34,6 +34,12 @@ export default async function StaffCheckInPage() {
             >
               Dashboard
             </Link>
+            <Link
+              href="/staff/registrations"
+              className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              Registrations
+            </Link>
             <StaffLogoutButton />
           </div>
         </header>

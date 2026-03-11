@@ -29,6 +29,8 @@ Single-codebase Next.js application for:
 - `/telegram/register` redirect to Telegram default event
 - `/telegram/register/[eventCode]` Telegram Mini App registration route
 - `/telegram/register/[eventCode]/confirmation` Telegram-oriented confirmation route
+- `/telegram/check-in` redirect to Telegram ticket lookup for default event
+- `/telegram/check-in/[eventCode]` Telegram Mini App phone lookup to send/re-send ticket
 - `/staff/login` staff auth
 - `/staff/dashboard` protected staff dashboard
 - `/staff/check-in` protected camera/manual scanner
@@ -81,6 +83,9 @@ npm run dev
 3. Save bot username to `TELEGRAM_BOT_USERNAME`.
 4. Set `TELEGRAM_WEBHOOK_SECRET` (random secret used in webhook header verification).
 5. Set `TELEGRAM_WEBAPP_AUTH_MAX_AGE_SECONDS` (max age for Mini App auth payload).
+6. Supported bot commands for users:
+   - `/start link_<TOKEN>` for deep-link registration linking
+   - `/checkin` (or `/ticket`) to open Mini App phone lookup and send ticket
 
 ## Telegram Mini App Setup
 1. Set your menu button Web App URL to:
@@ -95,6 +100,10 @@ Mini App behavior:
 - Verifies Telegram `initData` server-side before trusting user context.
 - Attempts automatic Telegram linking and immediate ticket send when verification succeeds.
 - Falls back to existing confirmation/deep-link linking flow if verification or send fails.
+- Also supports `/checkin` command flow:
+  - Bot returns a WebApp button to `/telegram/check-in/<eventCode>`
+  - User enters phone number
+  - Server verifies Telegram `initData`, links account if needed, and sends/re-sends ticket in chat
 
 ## Webhook Setup
 1. Ensure `APP_BASE_URL` is public HTTPS.

@@ -92,6 +92,12 @@ export default async function StaffDashboardPage() {
             >
               Open Check-In Scanner
             </Link>
+            <Link
+              href="/staff/registrations"
+              className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              View Registrations
+            </Link>
             <StaffLogoutButton />
           </div>
         </header>

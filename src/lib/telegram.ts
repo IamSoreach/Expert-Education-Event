@@ -29,6 +29,12 @@ export type TelegramUpdate = {
 const START_LINK_PREFIX = "link_";
 const TELEGRAM_TIMEOUT_MS = 20_000;
 
+type SendTelegramMessageOptions = {
+  parseMode?: "HTML" | "Markdown" | "MarkdownV2";
+  replyMarkup?: Record<string, unknown>;
+  disableWebPagePreview?: boolean;
+};
+
 function telegramApiUrl(method: string): string {
   const env = getEnv();
   return `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`;
@@ -67,6 +73,32 @@ export function buildTelegramDeepLink(token: string): string {
   )}`;
 }
 
+export function buildTelegramMiniAppTicketUrl(eventCode?: string): string {
+  const env = getEnv();
+  const code = (eventCode || env.EVENT_CODE).trim();
+  return `${env.APP_BASE_URL}/telegram/check-in/${encodeURIComponent(code)}`;
+}
+
+export function extractTelegramCommand(text: string | undefined): string | null {
+  if (!text) {
+    return null;
+  }
+
+  const [rawCommand] = text.trim().split(/\s+/, 1);
+  if (!rawCommand?.startsWith("/")) {
+    return null;
+  }
+
+  const commandWithOptionalMention = rawCommand.slice(1);
+  const [commandOnly] = commandWithOptionalMention.split("@", 1);
+  const normalized = commandOnly?.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  return normalized;
+}
+
 export function extractStartToken(text: string | undefined): string | null {
   if (!text) {
     return null;
@@ -93,7 +125,11 @@ export function extractStartToken(text: string | undefined): string | null {
   return trimmedToken;
 }
 
-export async function sendTelegramMessage(chatId: number | string, text: string): Promise<void> {
+export async function sendTelegramMessage(
+  chatId: number | string,
+  text: string,
+  options?: SendTelegramMessageOptions,
+): Promise<void> {
   await callTelegramApi("sendMessage", {
     method: "POST",
     headers: {
@@ -102,6 +138,11 @@ export async function sendTelegramMessage(chatId: number | string, text: string)
     body: JSON.stringify({
       chat_id: chatId,
       text,
+      ...(options?.parseMode ? { parse_mode: options.parseMode } : {}),
+      ...(typeof options?.disableWebPagePreview === "boolean"
+        ? { disable_web_page_preview: options.disableWebPagePreview }
+        : {}),
+      ...(options?.replyMarkup ? { reply_markup: options.replyMarkup } : {}),
     }),
   });
 }
