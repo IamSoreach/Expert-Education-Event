@@ -5,6 +5,7 @@ import { createRateLimitHeaders, createRateLimitKey, consumeRateLimit } from "@/
 import { getRequestIdentifier } from "@/lib/request";
 import { linkRegistrationToTelegram } from "@/lib/registrations";
 import {
+  buildTelegramMiniAppHomeUrl,
   buildTelegramMiniAppTicketUrl,
   extractTelegramCommand,
   extractStartToken,
@@ -67,6 +68,36 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const command = extractTelegramCommand(message.text);
+  if (command === "register" || command === "open" || command === "home") {
+    const miniAppHomeUrl = buildTelegramMiniAppHomeUrl();
+    await sendTelegramMessage(
+      message.chat.id,
+      `Open the event landing page to continue.\n\n${miniAppHomeUrl}`,
+      {
+        disableWebPagePreview: true,
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              {
+                text: "Open Event Landing",
+                web_app: {
+                  url: miniAppHomeUrl,
+                },
+              },
+            ],
+          ],
+        },
+      },
+    );
+
+    logger.info("telegram_webhook_register_command", {
+      requestId,
+      chatId: message.chat.id,
+      command,
+    });
+    return Response.json({ ok: true });
+  }
+
   if (command === "checkin" || command === "ticket" || command === "myticket") {
     const miniAppUrl = buildTelegramMiniAppTicketUrl();
     await sendTelegramMessage(
@@ -103,9 +134,25 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   if (startToken.length === 0) {
+    const miniAppHomeUrl = buildTelegramMiniAppHomeUrl();
     await sendTelegramMessage(
       message.chat.id,
-      "Please open your registration confirmation page and tap the Telegram connect button. If you already registered, send /checkin to request your ticket by phone number.",
+      "Please open the event landing page to register or continue. If you already registered, send /checkin to request your ticket by phone number.",
+      {
+        disableWebPagePreview: true,
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              {
+                text: "Open Event Landing",
+                web_app: {
+                  url: miniAppHomeUrl,
+                },
+              },
+            ],
+          ],
+        },
+      },
     );
     return Response.json({ ok: true });
   }

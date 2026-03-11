@@ -79,6 +79,12 @@ export function buildTelegramMiniAppTicketUrl(eventCode?: string): string {
   return `${env.APP_BASE_URL}/telegram/check-in/${encodeURIComponent(code)}`;
 }
 
+export function buildTelegramMiniAppHomeUrl(): string {
+  const env = getEnv();
+  const base = env.APP_BASE_URL.replace(/\/+$/, "");
+  return `${base}/`;
+}
+
 export function extractTelegramCommand(text: string | undefined): string | null {
   if (!text) {
     return null;
