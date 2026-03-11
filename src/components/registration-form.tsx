@@ -50,6 +50,12 @@ type TelegramWebAppUser = {
   username?: string;
 };
 
+type MiniAppProfileResponse = {
+  fullName?: string | null;
+  phoneNumber?: string | null;
+  error?: string;
+};
+
 type TelegramContext = {
   isWebApp: boolean;
   initData: string | null;
@@ -70,11 +76,63 @@ const initialState: FormState = {
   notes: "",
 };
 
+function parseTelegramUserFromInitData(initData: string): TelegramWebAppUser | null {
+  if (!initData) {
+    return null;
+  }
+
+  try {
+    const params = new URLSearchParams(initData);
+    const userRaw = params.get("user");
+    if (!userRaw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(userRaw) as Partial<TelegramWebAppUser>;
+    if (typeof parsed.id !== "number" || !Number.isFinite(parsed.id)) {
+      return null;
+    }
+
+    return {
+      id: parsed.id,
+      first_name: typeof parsed.first_name === "string" ? parsed.first_name : undefined,
+      last_name: typeof parsed.last_name === "string" ? parsed.last_name : undefined,
+      username: typeof parsed.username === "string" ? parsed.username : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function readTelegramInitDataFromUrl(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const raw = params.get("tgWebAppData");
+  if (!raw) {
+    return null;
+  }
+
+  const value = raw.trim();
+  return value.length > 0 ? value : null;
+}
+
+function buildSuggestedName(user: TelegramWebAppUser | null): string {
+  if (!user) {
+    return "";
+  }
+
+  return [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
+}
+
 export function RegistrationForm({
   eventCode,
   entryPoint = "web",
   confirmationPathPrefix = "/register",
 }: RegistrationFormProps) {
+  const expertChannelUrl = "https://t.me/experteducationvisacambodia";
   const router = useRouter();
   const [formState, setFormState] = useState<FormState>(initialState);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
@@ -83,6 +141,7 @@ export function RegistrationForm({
   const [selectedFlow, setSelectedFlow] = useState<"choose" | "register">(
     entryPoint === "telegram" ? "choose" : "register",
   );
+  const [isHydratingProfile, setIsHydratingProfile] = useState(false);
   const [telegramContext, setTelegramContext] = useState<TelegramContext>({
     isWebApp: false,
     initData: null,
@@ -99,37 +158,37 @@ export function RegistrationForm({
       }
 
       const telegramWebApp = window.Telegram?.WebApp;
-      if (!telegramWebApp) {
+      const initDataFromScript = telegramWebApp?.initData?.trim() || "";
+      const initDataFromUrl = readTelegramInitDataFromUrl() ?? "";
+      const initData = initDataFromScript || initDataFromUrl;
+      const user = telegramWebApp?.initDataUnsafe?.user ?? parseTelegramUserFromInitData(initData);
+
+      if (!telegramWebApp && !initData) {
         attempts += 1;
-        return attempts >= 10;
+        return attempts >= 40;
       }
 
-      const initData = telegramWebApp.initData?.trim() || "";
-      const user = telegramWebApp.initDataUnsafe?.user;
-
-      telegramWebApp.ready();
-      telegramWebApp.expand();
+      telegramWebApp?.ready();
+      telegramWebApp?.expand();
 
       setTelegramContext({
-        isWebApp: Boolean(initData),
+        isWebApp: Boolean(telegramWebApp || initData),
         initData: initData || null,
         user: user ?? null,
       });
 
-      if (user) {
-        const suggestedName = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
-        if (suggestedName) {
-          setFormState((prev) => {
-            if (prev.fullName.trim()) {
-              return prev;
-            }
+      const suggestedName = buildSuggestedName(user ?? null);
+      if (suggestedName) {
+        setFormState((prev) => {
+          if (prev.fullName.trim()) {
+            return prev;
+          }
 
-            return {
-              ...prev,
-              fullName: suggestedName,
-            };
-          });
-        }
+          return {
+            ...prev,
+            fullName: suggestedName,
+          };
+        });
       }
 
       return true;
@@ -150,6 +209,66 @@ export function RegistrationForm({
       window.clearInterval(interval);
     };
   }, []);
+
+  useEffect(() => {
+    if (!telegramContext.isWebApp || !telegramContext.initData) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const hydrateProfile = async () => {
+      setIsHydratingProfile(true);
+
+      try {
+        const response = await fetch("/api/public/miniapp-profile", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            telegramWebAppInitData: telegramContext.initData,
+          }),
+        });
+
+        const data = (await response.json()) as MiniAppProfileResponse;
+        if (!response.ok || cancelled) {
+          return;
+        }
+
+        setFormState((prev) => {
+          const nextFullName = prev.fullName.trim()
+            ? prev.fullName
+            : (data.fullName?.trim() ?? prev.fullName);
+          const nextPhone = prev.phoneNumber.trim()
+            ? prev.phoneNumber
+            : (data.phoneNumber?.trim() ?? prev.phoneNumber);
+
+          if (nextFullName === prev.fullName && nextPhone === prev.phoneNumber) {
+            return prev;
+          }
+
+          return {
+            ...prev,
+            fullName: nextFullName,
+            phoneNumber: nextPhone,
+          };
+        });
+      } catch {
+        // Non-blocking: form still works with manual entry.
+      } finally {
+        if (!cancelled) {
+          setIsHydratingProfile(false);
+        }
+      }
+    };
+
+    void hydrateProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [telegramContext.initData, telegramContext.isWebApp]);
 
   const payloadPreview = useMemo(
     () => ({
@@ -278,6 +397,14 @@ export function RegistrationForm({
             >
               Check-in
             </button>
+            <a
+              href={expertChannelUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="theme-button-primary inline-flex items-center justify-center px-4 py-2.5"
+            >
+              Join Expert Telegram Channel
+            </a>
           </div>
 
           {entryPoint !== "telegram" ? (
@@ -346,6 +473,13 @@ export function RegistrationForm({
             placeholder="0XX XXX XXX"
             inputMode="tel"
           />
+          {telegramContext.isWebApp ? (
+            <p className="text-[11px] text-[var(--brand-gray)]">
+              {isHydratingProfile
+                ? "Checking your linked Telegram profile for a saved phone number..."
+                : "Telegram does not expose phone automatically on first use. Enter once and it can auto-fill after your account is linked."}
+            </p>
+          ) : null}
           {errors.phoneNumber ? <p className="text-xs text-rose-600">{errors.phoneNumber}</p> : null}
         </div>
 
