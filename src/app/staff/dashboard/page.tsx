@@ -75,30 +75,24 @@ export default async function StaffDashboardPage() {
     ]);
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-8">
+    <main className="min-h-screen bg-gradient-to-b from-[#edf3fb] via-[#f7fbff] to-[#f3f7ff] px-4 py-8">
       <div className="mx-auto grid w-full max-w-6xl gap-5">
-        <header className="flex flex-wrap items-end justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
+        <header className="flex flex-wrap items-end justify-between gap-4 rounded-2xl border border-cyan-100/40 bg-gradient-to-r from-[#063263] via-[#1877F2] to-[#00CDC4] px-6 py-5 text-white shadow-[0_18px_42px_-24px_rgba(6,50,99,0.7)]">
           <div>
-            <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Staff Console</p>
-            <h1 className="mt-1 text-2xl font-semibold text-slate-900">Dashboard</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              Operations overview and quick access to browser check-in scanning.
+            <p className="text-sm uppercase tracking-[0.2em] text-white/80">Staff Console</p>
+            <h1 className="mt-1 text-2xl font-semibold text-white">Dashboard</h1>
+            <p className="mt-1 text-sm text-white/85">
+              Operations overview and quick access to registration monitoring.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href="/staff/check-in"
-              className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700"
-            >
-              Open Check-In Scanner
-            </Link>
-            <Link
               href="/staff/registrations"
-              className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              className="rounded-xl border border-white/45 bg-white/15 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/25"
             >
               View Registrations
             </Link>
-            <StaffLogoutButton />
+            <StaffLogoutButton className="rounded-xl border border-white/45 bg-white/15 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/25" />
           </div>
         </header>
 

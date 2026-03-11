@@ -30,8 +30,6 @@ export async function EventRegistrationPage({ eventCode, entryPoint }: EventRegi
     );
   }
 
-  const startDate = event.startAt.toLocaleString();
-  const endDate = event.endAt ? event.endAt.toLocaleString() : null;
   const confirmationPathPrefix = entryPoint === "telegram" ? "/telegram/register" : "/register";
 
   return (
@@ -46,13 +44,8 @@ export async function EventRegistrationPage({ eventCode, entryPoint }: EventRegi
               <span className="font-semibold text-[var(--brand-ink)]">Code:</span> {event.code}
             </p>
             <p>
-              <span className="font-semibold text-[var(--brand-ink)]">Starts:</span> {startDate}
+              <span className="font-semibold text-[var(--brand-ink)]">Event Date:</span> March 13, 2026
             </p>
-            {endDate ? (
-              <p>
-                <span className="font-semibold text-[var(--brand-ink)]">Ends:</span> {endDate}
-              </p>
-            ) : null}
             {event.venue ? (
               <p>
                 <span className="font-semibold text-[var(--brand-ink)]">Venue:</span> {event.venue}

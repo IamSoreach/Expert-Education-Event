@@ -32,7 +32,13 @@ export default function StaffLoginPage() {
         body: JSON.stringify({ password }),
       });
 
-      const data = (await response.json()) as { error?: string };
+      let data: { error?: string } = {};
+      try {
+        data = (await response.json()) as { error?: string };
+      } catch {
+        data = {};
+      }
+
       if (!response.ok) {
         throw new Error(data.error || "Login failed.");
       }

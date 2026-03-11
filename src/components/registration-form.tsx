@@ -80,7 +80,9 @@ export function RegistrationForm({
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedFlow, setSelectedFlow] = useState<"choose" | "register">("choose");
+  const [selectedFlow, setSelectedFlow] = useState<"choose" | "register">(
+    entryPoint === "telegram" ? "choose" : "register",
+  );
   const [telegramContext, setTelegramContext] = useState<TelegramContext>({
     isWebApp: false,
     initData: null,
@@ -296,13 +298,15 @@ export function RegistrationForm({
         onSubmit={handleSubmit}
         className="theme-card grid gap-4 p-6"
       >
-        <button
-          type="button"
-          onClick={() => setSelectedFlow("choose")}
-          className="w-fit rounded-lg border border-[var(--brand-border)] px-3 py-1.5 text-xs font-semibold text-[var(--brand-gray)] transition hover:bg-[var(--background)]"
-        >
-          Back to Options
-        </button>
+        {entryPoint === "telegram" ? (
+          <button
+            type="button"
+            onClick={() => setSelectedFlow("choose")}
+            className="w-fit rounded-lg border border-[var(--brand-border)] px-3 py-1.5 text-xs font-semibold text-[var(--brand-gray)] transition hover:bg-[var(--background)]"
+          >
+            Back to Options
+          </button>
+        ) : null}
 
         {telegramContext.isWebApp ? (
           <p className="rounded-xl border border-[var(--brand-secondary)]/40 bg-[var(--brand-secondary)]/10 px-3 py-2 text-xs text-[var(--brand-ink)]">
@@ -339,7 +343,7 @@ export function RegistrationForm({
             value={formState.phoneNumber}
             onChange={(event) => setField("phoneNumber", event.target.value)}
             className="theme-input px-3 py-2"
-            placeholder="+1 555 123 4567"
+            placeholder="0XX XXX XXX"
             inputMode="tel"
           />
           {errors.phoneNumber ? <p className="text-xs text-rose-600">{errors.phoneNumber}</p> : null}
@@ -398,7 +402,7 @@ export function RegistrationForm({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="theme-button-primary mt-2 inline-flex items-center justify-center px-4 py-2.5"
+          className="palette-cycle-button mt-2 inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-white disabled:cursor-not-allowed"
         >
           {isSubmitting ? "Submitting..." : "Continue"}
         </button>

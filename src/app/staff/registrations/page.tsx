@@ -201,30 +201,24 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
     ]);
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-8">
+    <main className="min-h-screen bg-gradient-to-b from-[#edf3fb] via-[#f7fbff] to-[#f3f7ff] px-4 py-8">
       <div className="mx-auto grid w-full max-w-7xl gap-5">
-        <header className="flex flex-wrap items-end justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
+        <header className="flex flex-wrap items-end justify-between gap-4 rounded-2xl border border-cyan-100/40 bg-gradient-to-r from-[#063263] via-[#1877F2] to-[#00CDC4] px-6 py-5 text-white shadow-[0_18px_42px_-24px_rgba(6,50,99,0.7)]">
           <div>
-            <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Staff Console</p>
-            <h1 className="mt-1 text-2xl font-semibold text-slate-900">Registrations</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              Live view of captured participant registrations and ticket/check-in states.
+            <p className="text-sm uppercase tracking-[0.2em] text-white/80">Staff Console</p>
+            <h1 className="mt-1 text-2xl font-semibold text-white">Registrations</h1>
+            <p className="mt-1 text-sm text-white/85">
+              Live view of captured participant registrations and ticket states.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/staff/dashboard"
-              className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              className="rounded-xl border border-white/45 bg-white/15 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/25"
             >
               Dashboard
             </Link>
-            <Link
-              href="/staff/check-in"
-              className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700"
-            >
-              Check-In
-            </Link>
-            <StaffLogoutButton />
+            <StaffLogoutButton className="rounded-xl border border-white/45 bg-white/15 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/25" />
           </div>
         </header>
 
@@ -237,13 +231,13 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <form method="get" className="grid gap-3 md:grid-cols-4">
-            <label className="grid gap-1 text-sm text-slate-700">
+          <form method="get" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <label className="grid min-w-0 gap-1 text-sm text-slate-700">
               Event
               <select
                 name="event"
                 defaultValue={eventFilter}
-                className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
               >
                 <option value="">All events</option>
                 {events.map((event) => (
@@ -254,12 +248,12 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
               </select>
             </label>
 
-            <label className="grid gap-1 text-sm text-slate-700">
+            <label className="grid min-w-0 gap-1 text-sm text-slate-700">
               Status
               <select
                 name="status"
                 defaultValue={statusFilter ?? ""}
-                className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
               >
                 <option value="">All statuses</option>
                 {STATUS_OPTIONS.map((status) => (
@@ -270,29 +264,29 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
               </select>
             </label>
 
-            <label className="grid gap-1 text-sm text-slate-700">
+            <label className="grid min-w-0 gap-1 text-sm text-slate-700">
               Search
               <input
                 name="q"
                 defaultValue={searchText}
                 placeholder="Name, phone, email, event, ticket..."
-                className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
 
-            <label className="grid gap-1 text-sm text-slate-700">
+            <label className="grid min-w-0 gap-1 text-sm text-slate-700">
               Limit
               <input
                 name="limit"
                 defaultValue={String(limit)}
-                className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
 
             <div className="md:col-span-4 flex flex-wrap gap-2">
               <button
                 type="submit"
-                className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700"
+                className="palette-cycle-button rounded-xl px-4 py-2.5 text-sm font-medium text-white"
               >
                 Apply Filters
               </button>

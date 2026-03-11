@@ -2,7 +2,11 @@
 
 import { useRouter } from "next/navigation";
 
-export function StaffLogoutButton() {
+type StaffLogoutButtonProps = {
+  className?: string;
+};
+
+export function StaffLogoutButton({ className }: StaffLogoutButtonProps) {
   const router = useRouter();
 
   async function handleLogout() {
@@ -17,7 +21,10 @@ export function StaffLogoutButton() {
     <button
       type="button"
       onClick={handleLogout}
-      className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+      className={
+        className ??
+        "rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+      }
     >
       Logout
     </button>
