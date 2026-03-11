@@ -38,10 +38,19 @@ type LinkStatusPollResponse = {
   tokenExpired: boolean;
 };
 
+type TelegramWebAppWindow = Window & {
+  Telegram?: {
+    WebApp?: {
+      close?: () => void;
+    };
+  };
+};
+
 export function RegistrationConfirmationStatus({ initialData, duplicate = false }: Props) {
   const [data, setData] = useState<RegistrationStatusPayload>(initialData);
   const [error, setError] = useState<string | null>(null);
   const [tokenExpired, setTokenExpired] = useState(false);
+  const expertChannelUrl = "https://t.me/experteducationvisacambodia";
 
   const query = useMemo(
     () =>
@@ -113,6 +122,16 @@ export function RegistrationConfirmationStatus({ initialData, duplicate = false 
       ? "border-blue-200 bg-blue-50 text-blue-900"
       : "border-amber-200 bg-amber-50 text-amber-900";
 
+  const handleFinish = () => {
+    const tg = (window as TelegramWebAppWindow).Telegram?.WebApp;
+    if (tg?.close) {
+      tg.close();
+      return;
+    }
+
+    window.location.href = "/";
+  };
+
   return (
     <section className="grid gap-5">
       <article className={`rounded-2xl border p-5 ${stateCardClass}`}>
@@ -170,32 +189,64 @@ export function RegistrationConfirmationStatus({ initialData, duplicate = false 
         </dl>
       </article>
 
-      <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Connect Telegram</h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Use Telegram to receive your QR ticket for this event.
-        </p>
-        <a
-          href={data.telegram.deepLink}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-4 inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700"
-        >
-          Open Telegram Bot
-        </a>
-        <ol className="mt-4 grid gap-1 text-sm text-slate-700">
-          <li>1. Tap the button</li>
-          <li>2. Open the bot</li>
-          <li>3. Press Start</li>
-          <li>4. The ticket will be sent there</li>
-        </ol>
-        <p className="mt-3 text-xs text-slate-500">Link expires: {tokenExpiryText}</p>
-        {tokenExpired && !data.telegramLinked ? (
-          <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            This link has expired. Submit registration again to get a new Telegram link.
+      {data.ticketSent ? (
+        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Your QR Code is ready!</h2>
+          <button
+            type="button"
+            onClick={handleFinish}
+            className="mt-4 inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700"
+          >
+            Finish
+          </button>
+          <a
+            href={expertChannelUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="palette-cycle-button mt-3 inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-[0_12px_26px_-16px_rgba(6,50,99,0.7)]"
+          >
+            Join Expert Telegram Channel
+          </a>
+          <div className="mt-3 rounded-xl border border-cyan-200 bg-cyan-50/80 px-3 py-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-900">
+              Preview Link
+            </p>
+            <p className="mt-1 break-all text-sm font-medium text-cyan-900">
+              t.me/experteducationvisacambodia
+            </p>
+            <p className="mt-1 text-xs text-cyan-800/80">
+              Opens the official channel in Telegram app or web.
+            </p>
+          </div>
+        </article>
+      ) : (
+        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Connect Telegram</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Use Telegram to receive your QR ticket for this event.
           </p>
-        ) : null}
-      </article>
+          <a
+            href={data.telegram.deepLink}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-4 inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700"
+          >
+            Open Telegram Bot
+          </a>
+          <ol className="mt-4 grid gap-1 text-sm text-slate-700">
+            <li>1. Tap the button</li>
+            <li>2. Open the bot</li>
+            <li>3. Press Start</li>
+            <li>4. The ticket will be sent there</li>
+          </ol>
+          <p className="mt-3 text-xs text-slate-500">Link expires: {tokenExpiryText}</p>
+          {tokenExpired && !data.telegramLinked ? (
+            <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              This link has expired. Submit registration again to get a new Telegram link.
+            </p>
+          ) : null}
+        </article>
+      )}
 
       {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
     </section>

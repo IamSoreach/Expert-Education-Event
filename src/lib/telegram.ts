@@ -168,6 +168,24 @@ export async function sendTelegramTicketPhoto(
   });
 }
 
+export async function sendTelegramPhotoByUrl(
+  chatId: number | string,
+  photoUrl: string,
+  caption?: string,
+): Promise<void> {
+  await callTelegramApi("sendPhoto", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      chat_id: chatId,
+      photo: photoUrl,
+      ...(caption ? { caption } : {}),
+    }),
+  });
+}
+
 export async function sendTelegramDocument(
   chatId: number | string,
   fileBuffer: Buffer,

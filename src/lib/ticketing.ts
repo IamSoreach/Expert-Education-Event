@@ -1,11 +1,11 @@
 import { Prisma, RegistrationStatus, Ticket } from "@prisma/client";
 import QRCode from "qrcode";
 
-import { createSignedQrPayload, generateTicketCode } from "@/lib/crypto";
+import { generateTicketCode } from "@/lib/crypto";
 import { getEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { sendTelegramTicketPhoto } from "@/lib/telegram";
+import { sendTelegramPhotoByUrl, sendTelegramTicketPhoto } from "@/lib/telegram";
 
 export type TicketWithRegistration = Ticket & {
   registration: {
@@ -38,11 +38,10 @@ function includeTicketRelations() {
 }
 
 async function createTicketWithRetry(registrationId: string): Promise<TicketWithRegistration> {
-  const env = getEnv();
-
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const ticketCode = generateTicketCode();
-    const qrPayload = createSignedQrPayload(ticketCode, env.QR_SIGNING_SECRET);
+    console.log("TICKET_CODE:", ticketCode);
+    const qrPayload = ticketCode;
 
     try {
       return await prisma.ticket.create({
@@ -71,11 +70,10 @@ async function createTicketWithRetry(registrationId: string): Promise<TicketWith
 }
 
 async function rotateTicketPayloadWithRetry(ticketId: string): Promise<TicketWithRegistration> {
-  const env = getEnv();
-
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const ticketCode = generateTicketCode();
-    const qrPayload = createSignedQrPayload(ticketCode, env.QR_SIGNING_SECRET);
+    console.log("TICKET_CODE:", ticketCode);
+    const qrPayload = ticketCode;
 
     try {
       return await prisma.ticket.update({
@@ -145,7 +143,10 @@ export async function getOrCreateTicket(registrationId: string): Promise<TicketW
 }
 
 export async function createTicketPngBuffer(qrPayload: string): Promise<Buffer> {
-  return QRCode.toBuffer(qrPayload, {
+  const qrText = qrPayload;
+  console.log("QR_TEXT:", qrText);
+
+  return QRCode.toBuffer(qrText, {
     type: "png",
     width: 640,
     margin: 1,
@@ -178,6 +179,15 @@ async function sendTicketToTelegram(ticket: TicketWithRegistration): Promise<voi
 
   const pngBuffer = await createTicketPngBuffer(ticket.qrPayload);
   await sendTelegramTicketPhoto(chatId, pngBuffer, buildTicketCaption(ticket));
+
+  const env = getEnv();
+  const appBaseUrl = env.APP_BASE_URL.replace(/\/+$/, "");
+  const floorPlanUrl = `${appBaseUrl}/landing/floor-plan.png`;
+  await sendTelegramPhotoByUrl(
+    chatId,
+    floorPlanUrl,
+    "Event floor plan. Please review this before arrival.",
+  );
 }
 
 export async function deliverTicketToTelegram(registrationId: string): Promise<TicketDeliveryResult> {

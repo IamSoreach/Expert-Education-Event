@@ -26,6 +26,7 @@ type TicketLookupResponse = {
 };
 
 export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicketLookupFormProps) {
+  const expertChannelUrl = "https://t.me/experteducationvisacambodia";
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -165,7 +166,7 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
                 onChange={(event) => setPhoneNumber(event.target.value)}
                 required
                 inputMode="tel"
-                placeholder="+855 12 345 678"
+                placeholder="0XX XXX XXX"
                 className="theme-input px-3 py-2"
               />
             </label>
@@ -181,6 +182,14 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
                 <p className="font-medium">{success.message ?? "Ticket processed."}</p>
                 {success.participantName ? <p className="mt-1">Name: {success.participantName}</p> : null}
                 {success.ticketCode ? <p className="mt-1">Ticket: {success.ticketCode}</p> : null}
+                <a
+                  href={expertChannelUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="palette-cycle-button mt-3 inline-flex items-center justify-center rounded-xl px-4 py-2 text-xs font-semibold text-white shadow-[0_12px_22px_-14px_rgba(6,50,99,0.75)]"
+                >
+                  Join Expert Telegram Channel
+                </a>
               </div>
             ) : null}
 
