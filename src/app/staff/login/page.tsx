@@ -7,7 +7,7 @@ export default function StaffLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [nextPath, setNextPath] = useState("/staff/dashboard");
+  const [nextPath, setNextPath] = useState("/staff/registrations");
   const router = useRouter();
 
   useEffect(() => {
