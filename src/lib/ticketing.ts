@@ -183,11 +183,20 @@ async function sendTicketToTelegram(ticket: TicketWithRegistration): Promise<voi
   const env = getEnv();
   const appBaseUrl = env.APP_BASE_URL.replace(/\/+$/, "");
   const floorPlanUrl = `${appBaseUrl}/landing/floor-plan.png`;
-  await sendTelegramPhotoByUrl(
-    chatId,
-    floorPlanUrl,
-    "Event floor plan. Please review this before arrival.",
-  );
+  try {
+    await sendTelegramPhotoByUrl(
+      chatId,
+      floorPlanUrl,
+      "Event floor plan. Please review this before arrival.",
+    );
+  } catch (error) {
+    // Non-fatal: QR ticket was already sent successfully.
+    logger.warn("ticket_floor_plan_send_failed", {
+      registrationId: ticket.registrationId,
+      ticketId: ticket.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 export async function deliverTicketToTelegram(registrationId: string): Promise<TicketDeliveryResult> {

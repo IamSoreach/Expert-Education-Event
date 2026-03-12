@@ -36,6 +36,21 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
     initData: null,
   });
 
+  function readTelegramInitDataFromUrl(): string | null {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get("tgWebAppData");
+    if (!raw) {
+      return null;
+    }
+
+    const value = raw.trim();
+    return value.length > 0 ? value : null;
+  }
+
   useEffect(() => {
     let cancelled = false;
     let attempts = 0;
@@ -51,7 +66,8 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
         return attempts >= 10;
       }
 
-      const initData = telegramWebApp.initData?.trim() || "";
+      const directInitData = telegramWebApp.initData?.trim() || "";
+      const initData = directInitData || readTelegramInitDataFromUrl() || "";
       telegramWebApp.ready();
       telegramWebApp.expand();
 

@@ -3,7 +3,11 @@ import { RegistrationStatus } from "@prisma/client";
 import { getEnv } from "@/lib/env";
 import { errorJson, tooManyRequestsJson } from "@/lib/http";
 import { createRequestId, logger } from "@/lib/logger";
-import { normalizePhoneNumber, isReasonablePhoneNumber } from "@/lib/phone";
+import {
+  buildPhoneLookupCandidates,
+  isReasonablePhoneNumber,
+  normalizePhoneNumber,
+} from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 import { createRateLimitHeaders, createRateLimitKey, consumeRateLimit } from "@/lib/rate-limit";
 import { linkRegistrationToTelegramFromMiniApp } from "@/lib/registrations";
@@ -62,6 +66,7 @@ export async function POST(req: Request): Promise<Response> {
       return errorJson("Please enter a valid phone number.", 400, undefined, rateHeaders);
     }
 
+    const phoneCandidates = buildPhoneLookupCandidates(parsed.data.phoneNumber);
     const registration = await prisma.registration.findFirst({
       where: {
         status: {
@@ -71,7 +76,9 @@ export async function POST(req: Request): Promise<Response> {
           code: parsed.data.eventCode,
         },
         participant: {
-          phoneNumber: normalizedPhone,
+          phoneNumber: {
+            in: phoneCandidates.length > 0 ? phoneCandidates : [normalizedPhone],
+          },
         },
       },
       orderBy: {
@@ -88,6 +95,8 @@ export async function POST(req: Request): Promise<Response> {
       logger.warn("miniapp_ticket_lookup_not_found", {
         requestId,
         eventCode: parsed.data.eventCode,
+        normalizedPhone,
+        phoneCandidates,
       });
       return errorJson(
         "No registration was found for that phone number in this event.",
