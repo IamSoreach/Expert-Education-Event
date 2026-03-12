@@ -3,6 +3,7 @@ import { ConfirmationStatus, Prisma, RegistrationStatus } from "@prisma/client";
 import { redirect } from "next/navigation";
 
 import { StaffLogoutButton } from "@/components/staff-logout-button";
+import { StaffRegistrationsLiveRefresh } from "@/components/staff-registrations-live-refresh";
 import { isStaffSessionValid } from "@/lib/auth";
 import { formatDateTimePhnomPenh } from "@/lib/datetime";
 import { getEnv } from "@/lib/env";
@@ -245,6 +246,7 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
               Live view of captured participant registrations and ticket states.
             </p>
             <p className="mt-1 text-xs text-white/80">All times shown in Phnom Penh time (UTC+7).</p>
+            <StaffRegistrationsLiveRefresh intervalMs={5000} />
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
@@ -258,7 +260,7 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
         </header>
 
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
-          <MetricCard title="Matching Rows" value={totalMatching} tone="slate" />
+          <MetricCard title="Total Registrations" value={totalMatching} tone="slate" />
           <MetricCard title="Pending" value={pendingCount} tone="slate" />
           <MetricCard title="Linked" value={linkedCount} tone="blue" />
           <MetricCard title="Ticket Sent" value={sentCount} tone="green" />
@@ -365,8 +367,6 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
                   <th className="px-3 py-2 font-medium">Telegram</th>
                   <th className="px-3 py-2 font-medium">Status</th>
                   <th className="px-3 py-2 font-medium">Confirmation</th>
-                  <th className="px-3 py-2 font-medium">Ticket</th>
-                  <th className="px-3 py-2 font-medium">Check-In</th>
                 </tr>
               </thead>
               <tbody>
@@ -407,16 +407,11 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
                         {toDateTime(row.confirmationSentAt ?? null)}
                       </div>
                     </td>
-                    <td className="px-3 py-2">
-                      <div>{row.ticket?.ticketCode || "-"}</div>
-                      <div className="text-xs text-slate-500">Sent: {toDateTime(row.ticket?.sentAt ?? null)}</div>
-                    </td>
-                    <td className="px-3 py-2">{toDateTime(row.ticket?.checkedInAt ?? null)}</td>
                   </tr>
                 ))}
                 {registrations.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-6 text-center text-slate-500">
+                    <td colSpan={7} className="px-3 py-6 text-center text-slate-500">
                       No registrations matched your filter.
                     </td>
                   </tr>
