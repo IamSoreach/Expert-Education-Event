@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+const optionalTrimmedString = (schema: z.ZodType<string>) =>
+  z.preprocess(
+    (value) => {
+      if (typeof value !== "string") {
+        return value;
+      }
+
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : undefined;
+    },
+    schema.optional(),
+  );
+
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   APP_BASE_URL: z.string().url(),
@@ -12,6 +25,9 @@ const envSchema = z.object({
   QR_SIGNING_SECRET: z.string().min(16),
   STAFF_PASSWORD: z.string().min(8),
   STAFF_AUTH_SECRET: z.string().min(16),
+  SCANNER_BASE_URL: optionalTrimmedString(z.string().url()),
+  SCANNER_API_KEY: optionalTrimmedString(z.string().min(1)),
+  SCANNER_SOURCE: z.string().trim().min(1).max(120).default("telegram-miniapp"),
   TELEGRAM_LINK_TOKEN_TTL_MINUTES: z.coerce.number().int().min(5).max(10080).default(1440),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   RATE_LIMIT_REGISTER_MAX: z.coerce.number().int().min(1).max(500).default(12),
@@ -24,6 +40,14 @@ const envSchema = z.object({
   RATE_LIMIT_STAFF_CHECKIN_WINDOW_SECONDS: z.coerce.number().int().min(10).max(3600).default(60),
   RATE_LIMIT_TELEGRAM_WEBHOOK_MAX: z.coerce.number().int().min(30).max(5000).default(300),
   RATE_LIMIT_TELEGRAM_WEBHOOK_WINDOW_SECONDS: z.coerce.number().int().min(10).max(3600).default(60),
+}).superRefine((value, ctx) => {
+  if (Boolean(value.SCANNER_BASE_URL) !== Boolean(value.SCANNER_API_KEY)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["SCANNER_BASE_URL"],
+      message: "SCANNER_BASE_URL and SCANNER_API_KEY must be set together.",
+    });
+  }
 });
 
 type AppEnv = z.infer<typeof envSchema>;
@@ -45,4 +69,8 @@ export function getEnv(): AppEnv {
 
   cachedEnv = parsed.data;
   return cachedEnv;
+}
+
+export function resetEnvCacheForTests(): void {
+  cachedEnv = null;
 }

@@ -119,6 +119,12 @@ function readTelegramInitDataFromUrl(): string | null {
   return value.length > 0 ? value : null;
 }
 
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 function readTelegramContextSnapshot(): TelegramContext {
   if (typeof window === "undefined") {
     return {
@@ -141,6 +147,18 @@ function readTelegramContextSnapshot(): TelegramContext {
   };
 }
 
+async function waitForTelegramContext(maxWaitMs = 2500): Promise<TelegramContext> {
+  const startedAt = Date.now();
+  let snapshot = readTelegramContextSnapshot();
+
+  while (!snapshot.initData && Date.now() - startedAt < maxWaitMs) {
+    await wait(120);
+    snapshot = readTelegramContextSnapshot();
+  }
+
+  return snapshot;
+}
+
 function buildSuggestedName(user: TelegramWebAppUser | null): string {
   if (!user) {
     return "";
@@ -161,7 +179,7 @@ export function RegistrationForm({
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFlow, setSelectedFlow] = useState<"choose" | "register">(
-    entryPoint === "telegram" ? "choose" : "register",
+    "register",
   );
   const [isHydratingProfile, setIsHydratingProfile] = useState(false);
   const [telegramContext, setTelegramContext] = useState<TelegramContext>({
@@ -339,7 +357,7 @@ export function RegistrationForm({
       return;
     }
 
-    const liveContext = readTelegramContextSnapshot();
+    const liveContext = await waitForTelegramContext();
     if (
       liveContext.isWebApp &&
       (liveContext.initData !== telegramContext.initData || liveContext.user?.id !== telegramContext.user?.id)
@@ -470,16 +488,6 @@ export function RegistrationForm({
         onSubmit={handleSubmit}
         className="theme-card grid gap-4 p-6"
       >
-        {entryPoint === "telegram" ? (
-          <button
-            type="button"
-            onClick={() => setSelectedFlow("choose")}
-            className="w-fit rounded-lg border border-[var(--brand-border)] px-3 py-1.5 text-xs font-semibold text-[var(--brand-gray)] transition hover:bg-[var(--background)]"
-          >
-            Back to Options
-          </button>
-        ) : null}
-
         {telegramContext.isWebApp ? (
           <p className="rounded-xl border border-[var(--brand-secondary)]/40 bg-[var(--brand-secondary)]/10 px-3 py-2 text-xs text-[var(--brand-ink)]">
             Telegram Mini App session detected. We will try to link Telegram automatically after registration.

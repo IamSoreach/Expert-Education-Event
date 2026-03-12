@@ -5,6 +5,7 @@ import { generateTicketCode } from "@/lib/crypto";
 import { getEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { mapExternalTicketToScanner } from "@/lib/scanner";
 import { sendTelegramPhotoByUrl, sendTelegramTicketPhoto } from "@/lib/telegram";
 
 export type TicketWithRegistration = Ticket & {
@@ -26,6 +27,27 @@ export type TicketDeliveryResult =
   | { status: "sent"; ticket: TicketWithRegistration }
   | { status: "already_sent"; ticket: TicketWithRegistration };
 
+type TicketingDependencies = {
+  prisma: {
+    $transaction: typeof prisma.$transaction;
+    ticket: Pick<
+      typeof prisma.ticket,
+      "findUnique" | "create" | "update" | "findUniqueOrThrow"
+    >;
+    registration: Pick<typeof prisma.registration, "update">;
+  };
+  sendTelegramTicketPhoto: typeof sendTelegramTicketPhoto;
+  sendTelegramPhotoByUrl: typeof sendTelegramPhotoByUrl;
+  mapExternalTicketToScanner: typeof mapExternalTicketToScanner;
+};
+
+export const ticketingDependencies: TicketingDependencies = {
+  prisma,
+  sendTelegramTicketPhoto,
+  sendTelegramPhotoByUrl,
+  mapExternalTicketToScanner,
+};
+
 function includeTicketRelations() {
   return {
     registration: {
@@ -40,11 +62,10 @@ function includeTicketRelations() {
 async function createTicketWithRetry(registrationId: string): Promise<TicketWithRegistration> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const ticketCode = generateTicketCode();
-    console.log("TICKET_CODE:", ticketCode);
     const qrPayload = ticketCode;
 
     try {
-      return await prisma.ticket.create({
+      const created = await ticketingDependencies.prisma.ticket.create({
         data: {
           registrationId,
           ticketCode,
@@ -54,6 +75,8 @@ async function createTicketWithRetry(registrationId: string): Promise<TicketWith
         },
         include: includeTicketRelations(),
       });
+      await mapTicketToScanner(created);
+      return created;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -72,11 +95,10 @@ async function createTicketWithRetry(registrationId: string): Promise<TicketWith
 async function rotateTicketPayloadWithRetry(ticketId: string): Promise<TicketWithRegistration> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const ticketCode = generateTicketCode();
-    console.log("TICKET_CODE:", ticketCode);
     const qrPayload = ticketCode;
 
     try {
-      return await prisma.ticket.update({
+      const updated = await ticketingDependencies.prisma.ticket.update({
         where: {
           id: ticketId,
         },
@@ -91,6 +113,8 @@ async function rotateTicketPayloadWithRetry(ticketId: string): Promise<TicketWit
         },
         include: includeTicketRelations(),
       });
+      await mapTicketToScanner(updated);
+      return updated;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -106,9 +130,16 @@ async function rotateTicketPayloadWithRetry(ticketId: string): Promise<TicketWit
   throw new Error("Failed to regenerate unique ticket code after multiple attempts.");
 }
 
+async function mapTicketToScanner(ticket: Pick<Ticket, "ticketCode" | "qrPayload">): Promise<void> {
+  await ticketingDependencies.mapExternalTicketToScanner({
+    externalCode: ticket.qrPayload,
+    ticketCode: ticket.ticketCode,
+  });
+}
+
 async function markTicketSent(ticketId: string, registrationId: string): Promise<void> {
-  await prisma.$transaction([
-    prisma.ticket.update({
+  await ticketingDependencies.prisma.$transaction([
+    ticketingDependencies.prisma.ticket.update({
       where: {
         id: ticketId,
       },
@@ -116,7 +147,7 @@ async function markTicketSent(ticketId: string, registrationId: string): Promise
         sentAt: new Date(),
       },
     }),
-    prisma.registration.update({
+    ticketingDependencies.prisma.registration.update({
       where: {
         id: registrationId,
       },
@@ -127,8 +158,10 @@ async function markTicketSent(ticketId: string, registrationId: string): Promise
   ]);
 }
 
-export async function getOrCreateTicket(registrationId: string): Promise<TicketWithRegistration> {
-  const existing = await prisma.ticket.findUnique({
+async function getOrCreateTicketState(
+  registrationId: string,
+): Promise<{ ticket: TicketWithRegistration; created: boolean }> {
+  const existing = await ticketingDependencies.prisma.ticket.findUnique({
     where: {
       registrationId,
     },
@@ -136,17 +169,24 @@ export async function getOrCreateTicket(registrationId: string): Promise<TicketW
   });
 
   if (existing) {
-    return existing;
+    return {
+      ticket: existing,
+      created: false,
+    };
   }
 
-  return createTicketWithRetry(registrationId);
+  return {
+    ticket: await createTicketWithRetry(registrationId),
+    created: true,
+  };
+}
+
+export async function getOrCreateTicket(registrationId: string): Promise<TicketWithRegistration> {
+  return (await getOrCreateTicketState(registrationId)).ticket;
 }
 
 export async function createTicketPngBuffer(qrPayload: string): Promise<Buffer> {
-  const qrText = qrPayload;
-  console.log("QR_TEXT:", qrText);
-
-  return QRCode.toBuffer(qrText, {
+  return QRCode.toBuffer(qrPayload, {
     type: "png",
     width: 640,
     margin: 1,
@@ -169,22 +209,18 @@ export function buildTicketCaption(ticket: TicketWithRegistration): string {
   ].join("\n");
 }
 
-async function sendTicketToTelegram(ticket: TicketWithRegistration): Promise<void> {
-  const participant = ticket.registration.participant;
-  const chatId = participant.telegramChatId || participant.telegramUserId;
-
-  if (!chatId) {
-    throw new Error("Telegram user is not linked for this registration.");
-  }
-
+async function sendTicketToChatId(
+  ticket: TicketWithRegistration,
+  chatId: number | string,
+): Promise<void> {
   const pngBuffer = await createTicketPngBuffer(ticket.qrPayload);
-  await sendTelegramTicketPhoto(chatId, pngBuffer, buildTicketCaption(ticket));
+  await ticketingDependencies.sendTelegramTicketPhoto(chatId, pngBuffer, buildTicketCaption(ticket));
 
   const env = getEnv();
   const appBaseUrl = env.APP_BASE_URL.replace(/\/+$/, "");
   const floorPlanUrl = `${appBaseUrl}/landing/floor-plan.png`;
   try {
-    await sendTelegramPhotoByUrl(
+    await ticketingDependencies.sendTelegramPhotoByUrl(
       chatId,
       floorPlanUrl,
       "Event floor plan. Please review this before arrival.",
@@ -199,8 +235,67 @@ async function sendTicketToTelegram(ticket: TicketWithRegistration): Promise<voi
   }
 }
 
+async function sendTicketToTelegram(ticket: TicketWithRegistration): Promise<void> {
+  const participant = ticket.registration.participant;
+  const chatId = participant.telegramChatId || participant.telegramUserId;
+
+  if (!chatId) {
+    throw new Error("Telegram user is not linked for this registration.");
+  }
+
+  await sendTicketToChatId(ticket, chatId);
+}
+
+export async function deliverTicketToTelegramChat(
+  registrationId: string,
+  chatId: number | string,
+): Promise<TicketDeliveryResult> {
+  const { ticket, created } = await getOrCreateTicketState(registrationId);
+
+  if (!created && !ticket.sentAt) {
+    await mapTicketToScanner(ticket);
+  }
+
+  await sendTicketToChatId(ticket, chatId);
+
+  if (ticket.sentAt) {
+    logger.info("ticket_resent_to_chat", {
+      registrationId,
+      ticketId: ticket.id,
+      chatId: String(chatId),
+    });
+    return {
+      status: "already_sent",
+      ticket,
+    };
+  }
+
+  await markTicketSent(ticket.id, ticket.registrationId);
+  logger.info("ticket_sent_to_chat", {
+    registrationId,
+    ticketId: ticket.id,
+    chatId: String(chatId),
+  });
+
+  const refreshed = await ticketingDependencies.prisma.ticket.findUniqueOrThrow({
+    where: {
+      id: ticket.id,
+    },
+    include: includeTicketRelations(),
+  });
+
+  return {
+    status: "sent",
+    ticket: refreshed,
+  };
+}
+
 export async function deliverTicketToTelegram(registrationId: string): Promise<TicketDeliveryResult> {
-  const ticket = await getOrCreateTicket(registrationId);
+  const { ticket, created } = await getOrCreateTicketState(registrationId);
+
+  if (!created && !ticket.sentAt) {
+    await mapTicketToScanner(ticket);
+  }
 
   if (ticket.sentAt) {
     logger.info("ticket_already_sent", {
@@ -220,7 +315,7 @@ export async function deliverTicketToTelegram(registrationId: string): Promise<T
     ticketId: ticket.id,
   });
 
-  const refreshed = await prisma.ticket.findUniqueOrThrow({
+  const refreshed = await ticketingDependencies.prisma.ticket.findUniqueOrThrow({
     where: {
       id: ticket.id,
     },
@@ -234,7 +329,12 @@ export async function deliverTicketToTelegram(registrationId: string): Promise<T
 }
 
 export async function resendExistingTicketToTelegram(registrationId: string): Promise<TicketWithRegistration> {
-  const ticket = await getOrCreateTicket(registrationId);
+  const { ticket, created } = await getOrCreateTicketState(registrationId);
+
+  if (!created) {
+    await mapTicketToScanner(ticket);
+  }
+
   await sendTicketToTelegram(ticket);
   logger.info("ticket_resent", {
     registrationId,
@@ -245,7 +345,7 @@ export async function resendExistingTicketToTelegram(registrationId: string): Pr
     await markTicketSent(ticket.id, ticket.registrationId);
   }
 
-  return prisma.ticket.findUniqueOrThrow({
+  return ticketingDependencies.prisma.ticket.findUniqueOrThrow({
     where: {
       id: ticket.id,
     },
@@ -269,7 +369,7 @@ export async function regenerateAndResendTicketForAdmin(
   await sendTicketToTelegram(regenerated);
   await markTicketSent(regenerated.id, regenerated.registrationId);
 
-  return prisma.ticket.findUniqueOrThrow({
+  return ticketingDependencies.prisma.ticket.findUniqueOrThrow({
     where: {
       id: regenerated.id,
     },

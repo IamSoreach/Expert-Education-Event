@@ -8,7 +8,7 @@ import { linkRegistrationToTelegramFromMiniApp } from "@/lib/registrations";
 import { getRequestIdentifier } from "@/lib/request";
 import { buildTelegramDeepLink } from "@/lib/telegram";
 import { verifyTelegramWebAppInitData } from "@/lib/telegram-webapp";
-import { deliverTicketToTelegram } from "@/lib/ticketing";
+import { deliverTicketToTelegram, deliverTicketToTelegramChat } from "@/lib/ticketing";
 import { registrationPayloadSchema } from "@/lib/validation/registration";
 import {
   EventUnavailableError,
@@ -105,7 +105,12 @@ export async function POST(req: Request): Promise<Response> {
 
             try {
               const delivery = await deliverTicketToTelegram(result.registration.id);
-              miniApp.ticketDelivery = delivery.status === "sent" ? "sent" : "already_sent";
+              if (delivery.status === "sent") {
+                miniApp.ticketDelivery = "sent";
+              } else {
+                miniApp.ticketDelivery = "already_sent";
+                miniApp.message = "You already have a QR code in this Telegram chat. No new ticket was sent.";
+              }
               ticketReady = true;
             } catch (deliveryError) {
               miniApp.ticketDelivery = "failed";
@@ -117,10 +122,32 @@ export async function POST(req: Request): Promise<Response> {
                 error: deliveryError instanceof Error ? deliveryError.message : String(deliveryError),
               });
             }
-          } else if (linkResult.status === "already_linked_other_user") {
-            miniApp.message = "This participant is already linked to a different Telegram account.";
-          } else if (linkResult.status === "telegram_in_use") {
-            miniApp.message = "This Telegram account is already linked to another registration.";
+          } else if (
+            linkResult.status === "already_linked_other_user" ||
+            linkResult.status === "telegram_in_use"
+          ) {
+            try {
+              const delivery = await deliverTicketToTelegramChat(
+                result.registration.id,
+                String(verified.user.id),
+              );
+              miniApp.ticketDelivery = delivery.status === "sent" ? "sent" : "already_sent";
+              miniApp.message =
+                linkResult.status === "telegram_in_use"
+                  ? "Ticket was sent to this chat, but Telegram account remains linked to a previous registration."
+                  : "Ticket was sent to this chat, but this registration remains linked to a different Telegram account.";
+              ticketReady = true;
+            } catch (deliveryError) {
+              miniApp.ticketDelivery = "failed";
+              miniApp.message =
+                "Telegram was verified, but automatic ticket sending failed. Use /checkin in the bot to retry.";
+              logger.error("mini_app_ticket_delivery_failed_conflict_fallback", {
+                requestId,
+                registrationId: result.registration.id,
+                linkStatus: linkResult.status,
+                error: deliveryError instanceof Error ? deliveryError.message : String(deliveryError),
+              });
+            }
           } else {
             miniApp.message =
               "Telegram session could not be matched automatically. Use the connect button on confirmation.";

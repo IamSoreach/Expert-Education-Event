@@ -25,6 +25,12 @@ type TicketLookupResponse = {
   error?: string;
 };
 
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicketLookupFormProps) {
   const expertChannelUrl = "https://t.me/experteducationvisacambodia";
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -67,6 +73,18 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
       isWebApp: Boolean(telegramWebApp || initData),
       initData: initData || null,
     };
+  }
+
+  async function waitForTelegramContext(maxWaitMs = 2500): Promise<TelegramContext> {
+    const startedAt = Date.now();
+    let snapshot = readTelegramContextSnapshot();
+
+    while (!snapshot.initData && Date.now() - startedAt < maxWaitMs) {
+      await wait(120);
+      snapshot = readTelegramContextSnapshot();
+    }
+
+    return snapshot;
   }
 
   useEffect(() => {
@@ -121,7 +139,7 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
     setServerError(null);
     setSuccess(null);
 
-    const liveContext = readTelegramContextSnapshot();
+    const liveContext = await waitForTelegramContext();
     if (liveContext.initData !== telegramContext.initData || liveContext.isWebApp !== telegramContext.isWebApp) {
       setTelegramContext(liveContext);
     }

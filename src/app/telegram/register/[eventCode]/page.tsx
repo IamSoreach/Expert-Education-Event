@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { EventRegistrationPage } from "@/components/event-registration-page";
 
 type TelegramRegisterByEventPageProps = {
   params: Promise<{
@@ -9,6 +9,6 @@ type TelegramRegisterByEventPageProps = {
 export default async function TelegramRegisterByEventPage({
   params,
 }: TelegramRegisterByEventPageProps) {
-  await params;
-  redirect("/");
+  const { eventCode } = await params;
+  return <EventRegistrationPage eventCode={eventCode} entryPoint="telegram" />;
 }

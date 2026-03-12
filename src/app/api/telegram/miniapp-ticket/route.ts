@@ -13,7 +13,11 @@ import { createRateLimitHeaders, createRateLimitKey, consumeRateLimit } from "@/
 import { linkRegistrationToTelegramFromMiniApp } from "@/lib/registrations";
 import { getRequestIdentifier } from "@/lib/request";
 import { verifyTelegramWebAppInitData } from "@/lib/telegram-webapp";
-import { deliverTicketToTelegram, resendExistingTicketToTelegram } from "@/lib/ticketing";
+import {
+  deliverTicketToTelegram,
+  deliverTicketToTelegramChat,
+  resendExistingTicketToTelegram,
+} from "@/lib/ticketing";
 import { telegramTicketLookupPayloadSchema } from "@/lib/validation/telegram-ticket";
 
 export const runtime = "nodejs";
@@ -107,39 +111,34 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     const linkResult = await linkRegistrationToTelegramFromMiniApp(registration.id, verified.user);
-    if (linkResult.status === "already_linked_other_user") {
-      return errorJson(
-        "This registration is already linked to another Telegram account.",
-        409,
-        undefined,
-        rateHeaders,
-      );
-    }
-
-    if (linkResult.status === "telegram_in_use") {
-      return errorJson(
-        "This Telegram account is already linked to another registration.",
-        409,
-        undefined,
-        rateHeaders,
-      );
-    }
-
     if (linkResult.status === "invalid_registration" || linkResult.status === "invalid_user") {
       return errorJson("Could not process this request.", 400, undefined, rateHeaders);
     }
 
-    const delivery = await deliverTicketToTelegram(registration.id);
     let ticketDelivery: "sent" | "resent";
     let ticketCode: string;
 
-    if (delivery.status === "already_sent") {
-      const resent = await resendExistingTicketToTelegram(registration.id);
-      ticketDelivery = "resent";
-      ticketCode = resent.ticketCode;
+    if (
+      linkResult.status === "already_linked_other_user" ||
+      linkResult.status === "telegram_in_use"
+    ) {
+      const directDelivery = await deliverTicketToTelegramChat(
+        registration.id,
+        String(verified.user.id),
+      );
+      ticketDelivery = directDelivery.status === "sent" ? "sent" : "resent";
+      ticketCode = directDelivery.ticket.ticketCode;
     } else {
-      ticketDelivery = "sent";
-      ticketCode = delivery.ticket.ticketCode;
+      const delivery = await deliverTicketToTelegram(registration.id);
+
+      if (delivery.status === "already_sent") {
+        const resent = await resendExistingTicketToTelegram(registration.id);
+        ticketDelivery = "resent";
+        ticketCode = resent.ticketCode;
+      } else {
+        ticketDelivery = "sent";
+        ticketCode = delivery.ticket.ticketCode;
+      }
     }
 
     logger.info("miniapp_ticket_lookup_success", {

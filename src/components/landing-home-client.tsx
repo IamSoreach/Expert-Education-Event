@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SyntheticEvent } from "react";
 
@@ -32,11 +33,30 @@ function handleFallbackImageError(event: SyntheticEvent<HTMLImageElement>) {
 }
 
 export function LandingHomeClient({ eventName, eventCode, upcomingEvents }: LandingHomeClientProps) {
+  const router = useRouter();
+  const expertChannelUrl = "https://t.me/experteducationvisacambodia";
   const carouselRef = useRef<HTMLDivElement | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [logoFailed, setLogoFailed] = useState(false);
 
   const totalEvents = useMemo(() => upcomingEvents.length, [upcomingEvents.length]);
+  const encodedEventCode = encodeURIComponent(eventCode);
+
+  const resolveMiniAppContext = () => {
+    const params = new URLSearchParams(window.location.search);
+    const queryInitData = params.get("tgWebAppData")?.trim();
+    const telegramWebApp = window.Telegram?.WebApp;
+    const directInitData = telegramWebApp?.initData?.trim();
+    const userAgentTelegram = /Telegram/i.test(window.navigator.userAgent);
+    return Boolean(queryInitData || directInitData || telegramWebApp || userAgentTelegram);
+  };
+
+  const handleNewRegistrationClick = () => {
+    const targetPath = resolveMiniAppContext()
+      ? `/telegram/register/${encodedEventCode}`
+      : `/register/${encodedEventCode}`;
+    router.push(targetPath);
+  };
 
   useEffect(() => {
     const container = carouselRef.current;
@@ -95,6 +115,17 @@ export function LandingHomeClient({ eventName, eventCode, upcomingEvents }: Land
     });
   };
 
+  const scrollToTop = () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-[#edf3fb] via-[#f7fbff] to-[#f3f7ff] px-3 pb-16 pt-8 sm:px-6">
       <div className="pointer-events-none absolute -left-32 top-28 hidden h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle,#9dd8ff_0%,#54b2ff_40%,transparent_72%)] opacity-35 blur-3xl md:block" />
@@ -140,19 +171,29 @@ export function LandingHomeClient({ eventName, eventCode, upcomingEvents }: Land
 
           <div className="px-5 pb-7 pt-8">
             <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-              <Link
-                href={`/register/${encodeURIComponent(eventCode)}`}
+              <button
+                type="button"
+                onClick={handleNewRegistrationClick}
                 className="font-display palette-cycle-button-a rounded-2xl bg-gradient-to-r from-[#063263] via-[#1877F2] to-[#00CDC4] px-4 py-4 text-center text-base font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]"
               >
                 New Registration
-              </Link>
+              </button>
               <Link
-                href={`/telegram/check-in/${encodeURIComponent(eventCode)}`}
+                href={`/telegram/check-in/${encodedEventCode}`}
                 className="font-display palette-cycle-button-b rounded-2xl bg-gradient-to-r from-[#00CDC4] via-[#1877F2] to-[#063263] px-4 py-4 text-center text-base font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.52)]"
               >
                 Check-in
               </Link>
             </div>
+
+            <a
+              href={expertChannelUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="font-display palette-cycle-button mt-3 inline-flex w-full items-center justify-center rounded-2xl px-4 py-4 text-center text-base font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]"
+            >
+              Join Expert Telegram Channel
+            </a>
 
             <div className="mt-8">
               <h2 className="font-display text-[2.15rem] font-semibold tracking-tight text-[#1b2240] sm:text-[2.45rem]">
@@ -251,6 +292,13 @@ export function LandingHomeClient({ eventName, eventCode, upcomingEvents }: Land
         </div>
 
         <footer className="px-4 pb-2 pt-4 text-center">
+          <button
+            type="button"
+            onClick={scrollToTop}
+            className="palette-cycle-button inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-semibold tracking-[0.08em] text-white shadow-[0_10px_24px_-14px_rgba(6,50,99,0.7)]"
+          >
+            Back to Top
+          </button>
           <p className="text-[0.7rem] font-medium tracking-[0.04em] text-[#4f6690] sm:text-xs">
             All rights reserved by Expert Education and Visa Services Cambodia
           </p>
