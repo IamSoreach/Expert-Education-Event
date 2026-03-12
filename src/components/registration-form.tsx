@@ -421,7 +421,20 @@ export function RegistrationForm({
   }
 
   function handleCheckInClick() {
-    router.push(`/telegram/check-in/${encodeURIComponent(eventCode)}`);
+    const initData =
+      telegramContext.initData ??
+      (typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("tgWebAppData")?.trim() || null
+        : null);
+
+    const path = `/telegram/check-in/${encodeURIComponent(eventCode)}`;
+    if (!initData) {
+      router.push(path);
+      return;
+    }
+
+    const query = new URLSearchParams({ tgWebAppData: initData }).toString();
+    router.push(`${path}?${query}`);
   }
 
   if (selectedFlow === "choose") {

@@ -75,7 +75,7 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
     };
   }
 
-  async function waitForTelegramContext(maxWaitMs = 2500): Promise<TelegramContext> {
+  async function waitForTelegramContext(maxWaitMs = 8000): Promise<TelegramContext> {
     const startedAt = Date.now();
     let snapshot = readTelegramContextSnapshot();
 
@@ -208,9 +208,13 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
             onSubmit={handleSubmit}
             className="theme-card grid gap-4 p-6"
           >
-            {telegramContext.isWebApp ? (
+            {telegramContext.isWebApp && telegramContext.initData ? (
               <p className="rounded-xl border border-[var(--brand-secondary)]/40 bg-[var(--brand-secondary)]/10 px-3 py-2 text-xs text-[var(--brand-ink)]">
-                Telegram session detected.
+                Telegram session detected and verified.
+              </p>
+            ) : telegramContext.isWebApp ? (
+              <p className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                Telegram app detected, but secure session data is missing. Re-open from bot <b>/checkin</b>.
               </p>
             ) : (
               <p className="rounded-xl border border-[var(--brand-secondary)]/40 bg-[var(--brand-secondary)]/10 px-3 py-2 text-xs text-[var(--brand-ink)]">

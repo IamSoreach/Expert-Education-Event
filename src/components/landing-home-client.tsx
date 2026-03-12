@@ -39,12 +39,53 @@ export function LandingHomeClient({ eventName, eventCode, upcomingEvents }: Land
   const carouselRef = useRef<HTMLDivElement | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [logoFailed, setLogoFailed] = useState(false);
+  const [telegramInitData] = useState<string | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const fromWebApp = window.Telegram?.WebApp?.initData?.trim();
+    if (fromWebApp) {
+      return fromWebApp;
+    }
+
+    const fromQuery = new URLSearchParams(window.location.search).get("tgWebAppData")?.trim();
+    return fromQuery || null;
+  });
 
   const totalEvents = useMemo(() => upcomingEvents.length, [upcomingEvents.length]);
   const encodedEventCode = encodeURIComponent(eventCode);
 
+  const readTelegramInitData = () => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const fromWebApp = window.Telegram?.WebApp?.initData?.trim();
+    if (fromWebApp) {
+      return fromWebApp;
+    }
+
+    const fromQuery = new URLSearchParams(window.location.search).get("tgWebAppData")?.trim();
+    return fromQuery || null;
+  };
+
+  const withTelegramInitData = (path: string) => {
+    const initData = readTelegramInitData() ?? telegramInitData;
+    if (!initData) {
+      return path;
+    }
+
+    const query = new URLSearchParams({ tgWebAppData: initData }).toString();
+    return `${path}?${query}`;
+  };
+
   const handleNewRegistrationClick = () => {
-    router.push(`/telegram/register/${encodedEventCode}`);
+    router.push(withTelegramInitData(`/telegram/register/${encodedEventCode}`));
+  };
+
+  const handleCheckInClick = () => {
+    router.push(withTelegramInitData(`/telegram/check-in/${encodedEventCode}`));
   };
 
   useEffect(() => {
@@ -168,12 +209,13 @@ export function LandingHomeClient({ eventName, eventCode, upcomingEvents }: Land
               >
                 New Registration
               </button>
-              <Link
-                href={`/telegram/check-in/${encodedEventCode}`}
+              <button
+                type="button"
+                onClick={handleCheckInClick}
                 className="font-display palette-cycle-button-b rounded-2xl bg-gradient-to-r from-[#00CDC4] via-[#1877F2] to-[#063263] px-4 py-4 text-center text-base font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.52)]"
               >
                 Check-in
-              </Link>
+              </button>
             </div>
 
             <a
