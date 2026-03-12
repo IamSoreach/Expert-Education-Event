@@ -223,7 +223,7 @@ async function sendTicketToChatId(
     await ticketingDependencies.sendTelegramPhotoByUrl(
       chatId,
       floorPlanUrl,
-      "Event floor plan. Please review this before arrival.",
+      "Please find the event floor plan here.",
     );
   } catch (error) {
     // Non-fatal: QR ticket was already sent successfully.

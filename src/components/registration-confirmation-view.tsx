@@ -9,7 +9,6 @@ type RegistrationConfirmationViewProps = {
   eventCode: string;
   registrationId?: string;
   token?: string;
-  duplicate?: boolean;
   backPathPrefix: "/register" | "/telegram/register";
 };
 
@@ -17,7 +16,6 @@ export async function RegistrationConfirmationView({
   eventCode,
   registrationId,
   token,
-  duplicate = false,
   backPathPrefix,
 }: RegistrationConfirmationViewProps) {
   const parsed = registrationStatusQuerySchema.safeParse({
@@ -85,7 +83,7 @@ export async function RegistrationConfirmationView({
               tokenConsumedAt: statusView.token.consumedAt,
             },
           }}
-          duplicate={duplicate}
+          registrationPathPrefix={backPathPrefix}
         />
       </div>
     </section>

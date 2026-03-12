@@ -7,6 +7,7 @@ import { isStaffSessionValid } from "@/lib/auth";
 import { formatDateTimePhnomPenh } from "@/lib/datetime";
 import { getEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { reconcileConfirmationStatuses } from "@/server/confirmation-reconcile";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,7 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
   if (!hasSession) {
     redirect("/staff/login");
   }
+  await reconcileConfirmationStatuses();
 
   const params = await searchParams;
   const eventFilter = params.event?.trim() || "";

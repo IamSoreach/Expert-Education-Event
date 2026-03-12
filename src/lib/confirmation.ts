@@ -15,17 +15,11 @@ export type ConfirmationDeliveryResult = {
   reason?: "already_sent" | "telegram_not_linked" | "send_failed";
 };
 
-function buildConfirmationMessage(
-  eventName: string,
-  participantName: string,
-  participantPhone: string,
-): string {
+function buildConfirmationMessage(): string {
   return [
-    "Registration Completed ?",
+    "Registration Completed.",
     "",
-    `Event: ${eventName}`,
-    `Name: ${participantName}`,
-    `Phone: ${participantPhone}`,
+    "Thank you for coming to Expert Education Fair.",
   ].join("\n");
 }
 
@@ -104,11 +98,7 @@ export async function deliverRegistrationConfirmation(
   try {
     await sendTelegramMessage(
       chatId,
-      buildConfirmationMessage(
-        registration.event.name,
-        registration.participant.fullName,
-        registration.participant.phoneNumber,
-      ),
+      buildConfirmationMessage(),
     );
 
     let floorPlanSent = false;
@@ -118,7 +108,7 @@ export async function deliverRegistrationConfirmation(
       await sendTelegramPhotoBuffer(
         chatId,
         floorPlanBuffer,
-        "Event floor plan. Please review this before arrival.",
+        "Please find the event floor plan here.",
         "floor-plan.png",
       );
       floorPlanSent = true;
@@ -134,7 +124,7 @@ export async function deliverRegistrationConfirmation(
         await sendTelegramPhotoByUrl(
           chatId,
           buildFloorPlanUrl(),
-          "Event floor plan. Please review this before arrival.",
+          "Please find the event floor plan here.",
         );
         floorPlanSent = true;
       } catch (urlError) {

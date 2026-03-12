@@ -27,7 +27,7 @@ type RegistrationStatusPayload = {
 
 type Props = {
   initialData: RegistrationStatusPayload;
-  duplicate?: boolean;
+  registrationPathPrefix: "/register" | "/telegram/register";
 };
 
 type LinkStatusPollResponse = {
@@ -39,7 +39,10 @@ type LinkStatusPollResponse = {
   tokenExpired: boolean;
 };
 
-export function RegistrationConfirmationStatus({ initialData, duplicate = false }: Props) {
+export function RegistrationConfirmationStatus({
+  initialData,
+  registrationPathPrefix,
+}: Props) {
   const [data, setData] = useState<RegistrationStatusPayload>(initialData);
   const [error, setError] = useState<string | null>(null);
   const [tokenExpired, setTokenExpired] = useState(false);
@@ -133,14 +136,6 @@ export function RegistrationConfirmationStatus({ initialData, duplicate = false 
         </p>
       </article>
 
-      {duplicate ? (
-        <article className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-          {data.ticketSent
-            ? "A previous registration was found. Confirmation was already sent earlier."
-            : "A previous registration was found for this event and your details were reused."}
-        </article>
-      ) : null}
-
       <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Submitted details</h2>
         <dl className="mt-3 grid gap-2 text-sm text-slate-700">
@@ -171,6 +166,12 @@ export function RegistrationConfirmationStatus({ initialData, duplicate = false 
             </div>
           ) : null}
         </dl>
+        <a
+          href={`${registrationPathPrefix}/${encodeURIComponent(data.eventCode)}`}
+          className="palette-cycle-button mt-4 inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-[0_12px_26px_-16px_rgba(6,50,99,0.7)]"
+        >
+          Submit Another
+        </a>
       </article>
 
       {!data.ticketSent ? (

@@ -7,7 +7,6 @@ type TelegramConfirmationPageProps = {
   searchParams: Promise<{
     registrationId?: string;
     token?: string;
-    duplicate?: string;
   }>;
 };
 
@@ -23,7 +22,6 @@ export default async function TelegramRegistrationConfirmationPage({
       eventCode={eventCode}
       registrationId={query.registrationId}
       token={query.token}
-      duplicate={query.duplicate === "1"}
       backPathPrefix="/telegram/register"
     />
   );
