@@ -51,6 +51,24 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
     return value.length > 0 ? value : null;
   }
 
+  function readTelegramContextSnapshot(): TelegramContext {
+    if (typeof window === "undefined") {
+      return {
+        isWebApp: false,
+        initData: null,
+      };
+    }
+
+    const telegramWebApp = window.Telegram?.WebApp;
+    const directInitData = telegramWebApp?.initData?.trim() || "";
+    const initData = directInitData || readTelegramInitDataFromUrl() || "";
+
+    return {
+      isWebApp: Boolean(telegramWebApp || initData),
+      initData: initData || null,
+    };
+  }
+
   useEffect(() => {
     let cancelled = false;
     let attempts = 0;
@@ -60,23 +78,22 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
         return true;
       }
 
+      const snapshot = readTelegramContextSnapshot();
       const telegramWebApp = window.Telegram?.WebApp;
-      if (!telegramWebApp) {
+      if (!snapshot.isWebApp) {
         attempts += 1;
-        return attempts >= 10;
+        return attempts >= 60;
+      }
+      telegramWebApp?.ready();
+      telegramWebApp?.expand();
+      setTelegramContext(snapshot);
+
+      if (snapshot.initData) {
+        return true;
       }
 
-      const directInitData = telegramWebApp.initData?.trim() || "";
-      const initData = directInitData || readTelegramInitDataFromUrl() || "";
-      telegramWebApp.ready();
-      telegramWebApp.expand();
-
-      setTelegramContext({
-        isWebApp: Boolean(initData),
-        initData: initData || null,
-      });
-
-      return true;
+      attempts += 1;
+      return attempts >= 60;
     };
 
     if (detectTelegramWebApp()) {
@@ -104,15 +121,25 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
     setServerError(null);
     setSuccess(null);
 
+    const liveContext = readTelegramContextSnapshot();
+    if (liveContext.initData !== telegramContext.initData || liveContext.isWebApp !== telegramContext.isWebApp) {
+      setTelegramContext(liveContext);
+    }
+
     const payload = {
       eventCode,
       phoneNumber,
-      telegramWebAppInitData: telegramContext.initData ?? "",
+      telegramWebAppInitData: liveContext.initData ?? "",
     };
+
+    if (!liveContext.initData) {
+      setServerError("Telegram session not detected. Open from bot /checkin and try again in 2 seconds.");
+      return;
+    }
 
     const parsed = telegramTicketLookupPayloadSchema.safeParse(payload);
     if (!parsed.success) {
-      setServerError("Please enter a valid phone number and open this page from Telegram.");
+      setServerError("Please enter a valid phone number and open this page from Telegram bot /checkin.");
       return;
     }
 

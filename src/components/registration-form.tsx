@@ -119,6 +119,28 @@ function readTelegramInitDataFromUrl(): string | null {
   return value.length > 0 ? value : null;
 }
 
+function readTelegramContextSnapshot(): TelegramContext {
+  if (typeof window === "undefined") {
+    return {
+      isWebApp: false,
+      initData: null,
+      user: null,
+    };
+  }
+
+  const telegramWebApp = window.Telegram?.WebApp;
+  const initDataFromScript = telegramWebApp?.initData?.trim() || "";
+  const initDataFromUrl = readTelegramInitDataFromUrl() ?? "";
+  const initData = initDataFromScript || initDataFromUrl || null;
+  const user = telegramWebApp?.initDataUnsafe?.user ?? parseTelegramUserFromInitData(initData ?? "");
+
+  return {
+    isWebApp: Boolean(telegramWebApp || initData),
+    initData,
+    user: user ?? null,
+  };
+}
+
 function buildSuggestedName(user: TelegramWebAppUser | null): string {
   if (!user) {
     return "";
@@ -156,28 +178,20 @@ export function RegistrationForm({
       if (cancelled) {
         return true;
       }
-
+      const snapshot = readTelegramContextSnapshot();
       const telegramWebApp = window.Telegram?.WebApp;
-      const initDataFromScript = telegramWebApp?.initData?.trim() || "";
-      const initDataFromUrl = readTelegramInitDataFromUrl() ?? "";
-      const initData = initDataFromScript || initDataFromUrl;
-      const user = telegramWebApp?.initDataUnsafe?.user ?? parseTelegramUserFromInitData(initData);
 
-      if (!telegramWebApp && !initData) {
+      if (!snapshot.isWebApp) {
         attempts += 1;
-        return attempts >= 40;
+        return attempts >= 60;
       }
 
       telegramWebApp?.ready();
       telegramWebApp?.expand();
 
-      setTelegramContext({
-        isWebApp: Boolean(telegramWebApp || initData),
-        initData: initData || null,
-        user: user ?? null,
-      });
+      setTelegramContext(snapshot);
 
-      const suggestedName = buildSuggestedName(user ?? null);
+      const suggestedName = buildSuggestedName(snapshot.user);
       if (suggestedName) {
         setFormState((prev) => {
           if (prev.fullName.trim()) {
@@ -191,7 +205,12 @@ export function RegistrationForm({
         });
       }
 
-      return true;
+      if (snapshot.initData) {
+        return true;
+      }
+
+      attempts += 1;
+      return attempts >= 60;
     };
 
     if (detectTelegramWebApp()) {
@@ -290,8 +309,8 @@ export function RegistrationForm({
     setServerError(null);
   }
 
-  function validateClient(): RegistrationPayload | null {
-    const parsed = registrationPayloadSchema.safeParse(payloadPreview);
+  function validateClient(payload: unknown = payloadPreview): RegistrationPayload | null {
+    const parsed = registrationPayloadSchema.safeParse(payload);
     if (!parsed.success) {
       const nextErrors: Partial<Record<keyof FormState, string>> = {};
       parsed.error.issues.forEach((issue) => {
@@ -320,7 +339,33 @@ export function RegistrationForm({
       return;
     }
 
-    const validated = validateClient();
+    const liveContext = readTelegramContextSnapshot();
+    if (
+      liveContext.isWebApp &&
+      (liveContext.initData !== telegramContext.initData || liveContext.user?.id !== telegramContext.user?.id)
+    ) {
+      setTelegramContext(liveContext);
+    }
+
+    const livePayload = {
+      ...formState,
+      eventCode,
+      source: liveContext.isWebApp
+        ? "telegram_mini_app"
+        : entryPoint === "telegram"
+          ? "telegram_web_fallback"
+          : "public_web",
+      telegramWebAppInitData: liveContext.isWebApp ? liveContext.initData ?? undefined : undefined,
+    };
+
+    if (entryPoint === "telegram" && !liveContext.initData) {
+      setServerError(
+        "Telegram session is still loading. Please open this page from the bot and try again in 2 seconds.",
+      );
+      return;
+    }
+
+    const validated = validateClient(livePayload);
     if (!validated) {
       return;
     }
