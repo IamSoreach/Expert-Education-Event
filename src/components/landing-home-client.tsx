@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SyntheticEvent } from "react";
@@ -42,20 +43,8 @@ export function LandingHomeClient({ eventName, eventCode, upcomingEvents }: Land
   const totalEvents = useMemo(() => upcomingEvents.length, [upcomingEvents.length]);
   const encodedEventCode = encodeURIComponent(eventCode);
 
-  const resolveMiniAppContext = () => {
-    const params = new URLSearchParams(window.location.search);
-    const queryInitData = params.get("tgWebAppData")?.trim();
-    const telegramWebApp = window.Telegram?.WebApp;
-    const directInitData = telegramWebApp?.initData?.trim();
-    const userAgentTelegram = /Telegram/i.test(window.navigator.userAgent);
-    return Boolean(queryInitData || directInitData || telegramWebApp || userAgentTelegram);
-  };
-
   const handleNewRegistrationClick = () => {
-    const targetPath = resolveMiniAppContext()
-      ? `/telegram/register/${encodedEventCode}`
-      : `/register/${encodedEventCode}`;
-    router.push(targetPath);
+    router.push(`/telegram/register/${encodedEventCode}`);
   };
 
   useEffect(() => {
@@ -128,6 +117,7 @@ export function LandingHomeClient({ eventName, eventCode, upcomingEvents }: Land
 
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-[#edf3fb] via-[#f7fbff] to-[#f3f7ff] px-3 pb-16 pt-8 sm:px-6">
+      <Script src="https://telegram.org/js/telegram-web-app.js" strategy="afterInteractive" />
       <div className="pointer-events-none absolute -left-32 top-28 hidden h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle,#9dd8ff_0%,#54b2ff_40%,transparent_72%)] opacity-35 blur-3xl md:block" />
       <div className="pointer-events-none absolute -right-36 top-20 hidden h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(circle,#8bf0e8_0%,#3bcbe8_40%,transparent_72%)] opacity-30 blur-3xl md:block" />
       <div className="pointer-events-none absolute bottom-12 left-1/2 hidden h-72 w-[36rem] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,#c7ddff_0%,transparent_70%)] opacity-45 blur-3xl md:block" />
