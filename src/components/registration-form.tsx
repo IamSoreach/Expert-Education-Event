@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
 
@@ -177,7 +177,10 @@ export function RegistrationForm({
   const [formState, setFormState] = useState<FormState>(initialState);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  const [portalSuccess, setPortalSuccess] = useState<string | null>(null);
+  const [isPortalRedirecting, setIsPortalRedirecting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const redirectTimerRef = useRef<number | null>(null);
   const [selectedFlow, setSelectedFlow] = useState<"choose" | "register">(
     "register",
   );
@@ -321,6 +324,14 @@ export function RegistrationForm({
     [entryPoint, eventCode, formState, telegramContext.initData, telegramContext.isWebApp],
   );
 
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current) {
+        window.clearTimeout(redirectTimerRef.current);
+      }
+    };
+  }, []);
+
   function setField<K extends keyof FormState>(field: K, value: FormState[K]) {
     setFormState((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: undefined }));
@@ -353,10 +364,11 @@ export function RegistrationForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isSubmitting) {
+    if (isSubmitting || isPortalRedirecting) {
       return;
     }
 
+    setPortalSuccess(null);
     const liveContext = await waitForTelegramContext();
     if (
       liveContext.isWebApp &&
@@ -398,6 +410,28 @@ export function RegistrationForm({
         throw new Error(
           data.error || "We could not complete registration at the moment. Please try again.",
         );
+      }
+
+      if (entryPoint === "web") {
+        setPortalSuccess(
+          data.duplicate
+            ? "Success. Existing registration was reused. Preparing a fresh form..."
+            : "Success. Student registration saved. Preparing a fresh form...",
+        );
+        setFormState(initialState);
+        setErrors({});
+        setServerError(null);
+        setIsPortalRedirecting(true);
+
+        if (redirectTimerRef.current) {
+          window.clearTimeout(redirectTimerRef.current);
+        }
+
+        const nextPath = `/register/${encodeURIComponent(eventCode)}`;
+        redirectTimerRef.current = window.setTimeout(() => {
+          window.location.assign(nextPath);
+        }, 1100);
+        return;
       }
 
       const query = new URLSearchParams({
@@ -591,13 +625,18 @@ export function RegistrationForm({
         {serverError ? (
           <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{serverError}</p>
         ) : null}
+        {portalSuccess ? (
+          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            {portalSuccess}
+          </p>
+        ) : null}
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || isPortalRedirecting}
           className="palette-cycle-button mt-2 inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-white disabled:cursor-not-allowed"
         >
-          {isSubmitting ? "Submitting..." : "Continue"}
+          {isSubmitting ? "Submitting..." : isPortalRedirecting ? "Success" : "Continue"}
         </button>
       </form>
     </>
