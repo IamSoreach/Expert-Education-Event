@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { deliverRegistrationConfirmation } from "@/lib/confirmation";
 import { getEnv } from "@/lib/env";
 import { errorJson, tooManyRequestsJson } from "@/lib/http";
 import { createRequestId, logger } from "@/lib/logger";
@@ -48,12 +49,14 @@ export async function POST(req: Request): Promise<Response> {
       ...parsed.data,
       eventCode: fallbackEventCode,
     });
+    const confirmationDelivery = await deliverRegistrationConfirmation(result.registration.id);
 
     logger.info("legacy_registration_submitted", {
       requestId,
       registrationId: result.registration.id,
       duplicate: result.duplicate,
       eventCode: fallbackEventCode,
+      confirmationDelivery: confirmationDelivery.status,
     });
 
     return Response.json(
@@ -62,6 +65,7 @@ export async function POST(req: Request): Promise<Response> {
         telegramDeepLink: buildTelegramDeepLink(result.linkToken.token),
         telegramLinkExpiresAt: result.linkToken.expiresAt.toISOString(),
         duplicate: result.duplicate,
+        confirmationDelivery: confirmationDelivery.status,
       },
       {
         headers: rateHeaders,

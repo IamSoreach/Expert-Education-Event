@@ -1,3 +1,4 @@
+import { deliverRegistrationConfirmation } from "@/lib/confirmation";
 import { getEnv } from "@/lib/env";
 import { tooManyRequestsJson } from "@/lib/http";
 import { createRequestId, logger } from "@/lib/logger";
@@ -12,7 +13,6 @@ import {
   sendTelegramMessage,
   TelegramUpdate,
 } from "@/lib/telegram";
-import { deliverTicketToTelegram } from "@/lib/ticketing";
 
 export const runtime = "nodejs";
 
@@ -102,7 +102,7 @@ export async function POST(req: Request): Promise<Response> {
     const miniAppUrl = buildTelegramMiniAppTicketUrl();
     await sendTelegramMessage(
       message.chat.id,
-      `Open the ticket page, enter your phone number, and we will send your QR ticket in this chat.\n\n${miniAppUrl}`,
+      `Open the lookup page, enter your phone number, and we will send registration confirmation to this chat.\n\n${miniAppUrl}`,
       {
         disableWebPagePreview: true,
         replyMarkup: {
@@ -159,7 +159,7 @@ export async function POST(req: Request): Promise<Response> {
 
   try {
     const linkResult = await linkRegistrationToTelegram(startToken, message.from, message.chat.id);
-    let shouldTryTicketDelivery = false;
+    let shouldTryConfirmationDelivery = false;
 
     switch (linkResult.status) {
       case "missing_token":
@@ -184,9 +184,9 @@ export async function POST(req: Request): Promise<Response> {
       case "already_linked":
         await sendTelegramMessage(
           message.chat.id,
-          "Your Telegram account is already linked for this registration. Checking your ticket now...",
+          "Your Telegram account is already linked for this registration. Sending confirmation now...",
         );
-        shouldTryTicketDelivery = true;
+        shouldTryConfirmationDelivery = true;
         break;
       case "already_linked_other_user":
         await sendTelegramMessage(
@@ -201,7 +201,7 @@ export async function POST(req: Request): Promise<Response> {
         );
         return Response.json({ ok: true });
       case "linked":
-        shouldTryTicketDelivery = true;
+        shouldTryConfirmationDelivery = true;
         break;
       default:
         return Response.json({ ok: true });
@@ -210,30 +210,32 @@ export async function POST(req: Request): Promise<Response> {
     if (linkResult.status === "linked") {
       await sendTelegramMessage(
         message.chat.id,
-        "Telegram linked successfully. Generating your QR ticket now...",
+        "Telegram linked successfully. Sending confirmation now...",
       );
     }
 
-    if (shouldTryTicketDelivery) {
+    if (shouldTryConfirmationDelivery) {
       try {
-        const delivery = await deliverTicketToTelegram(linkResult.registration.id);
-        if (delivery.status === "already_sent") {
+        const delivery = await deliverRegistrationConfirmation(linkResult.registration.id);
+        if (delivery.status === "sent" && delivery.reason === "already_sent") {
           await sendTelegramMessage(
             message.chat.id,
-            "Your ticket was already sent earlier in this chat.",
+            "Registration confirmation was already sent earlier.",
           );
+        } else if (delivery.status === "sent") {
+          await sendTelegramMessage(message.chat.id, "Registration confirmation sent.");
         } else {
           await sendTelegramMessage(
             message.chat.id,
-            "Ticket sent. Please keep this chat open so you can show your QR at check-in.",
+            "Registration saved, but this phone number is not linked to a Telegram account yet.",
           );
         }
       } catch (error) {
         await sendTelegramMessage(
           message.chat.id,
-          "Telegram was linked, but ticket delivery failed. Please contact support.",
+          "Telegram was linked, but confirmation delivery failed. Please contact support.",
         );
-        logger.error("telegram_ticket_delivery_failed", {
+        logger.error("telegram_confirmation_delivery_failed", {
           requestId,
           error: error instanceof Error ? error.message : String(error),
           chatId: message.chat.id,

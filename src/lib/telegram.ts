@@ -158,14 +158,25 @@ export async function sendTelegramTicketPhoto(
   pngBuffer: Buffer,
   caption: string,
 ): Promise<void> {
+  await sendTelegramPhotoBuffer(chatId, pngBuffer, caption, "ticket.png");
+}
+
+export async function sendTelegramPhotoBuffer(
+  chatId: number | string,
+  photoBuffer: Buffer,
+  caption?: string,
+  filename = "image.png",
+): Promise<void> {
   const formData = new FormData();
   formData.append("chat_id", String(chatId));
-  formData.append("caption", caption);
-  formData.append("parse_mode", "HTML");
+  if (caption) {
+    formData.append("caption", caption);
+    formData.append("parse_mode", "HTML");
+  }
   formData.append(
     "photo",
-    new Blob([Uint8Array.from(pngBuffer)], { type: "image/png" }),
-    "ticket.png",
+    new Blob([Uint8Array.from(photoBuffer)], { type: "image/png" }),
+    filename,
   );
 
   await callTelegramApi("sendPhoto", {

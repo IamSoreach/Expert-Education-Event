@@ -1,20 +1,23 @@
 import Link from "next/link";
-import { Prisma, RegistrationStatus } from "@prisma/client";
+import { ConfirmationStatus, Prisma, RegistrationStatus } from "@prisma/client";
 import { redirect } from "next/navigation";
 
 import { StaffLogoutButton } from "@/components/staff-logout-button";
 import { isStaffSessionValid } from "@/lib/auth";
+import { formatDateTimePhnomPenh } from "@/lib/datetime";
 import { getEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 const STATUS_OPTIONS = Object.values(RegistrationStatus);
+const CONFIRMATION_OPTIONS = Object.values(ConfirmationStatus);
 
 type StaffRegistrationsPageProps = {
   searchParams: Promise<{
     event?: string;
     status?: string;
+    confirmation?: string;
     q?: string;
     limit?: string;
   }>;
@@ -29,13 +32,7 @@ function parseLimit(raw: string | undefined): number {
 }
 
 function toDateTime(value: Date | null): string {
-  if (!value) {
-    return "-";
-  }
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(value);
+  return formatDateTimePhnomPenh(value);
 }
 
 function getStatusTone(status: RegistrationStatus): string {
@@ -55,6 +52,17 @@ function getStatusTone(status: RegistrationStatus): string {
   }
 }
 
+function getConfirmationTone(status: ConfirmationStatus): string {
+  switch (status) {
+    case ConfirmationStatus.SENT:
+      return "border-emerald-300 bg-emerald-100 text-emerald-800";
+    case ConfirmationStatus.INVALID:
+      return "border-rose-300 bg-rose-100 text-rose-800";
+    default:
+      return "border-slate-300 bg-slate-100 text-slate-700";
+  }
+}
+
 export default async function StaffRegistrationsPage({ searchParams }: StaffRegistrationsPageProps) {
   const env = getEnv();
   const hasSession = await isStaffSessionValid(env.STAFF_AUTH_SECRET);
@@ -67,6 +75,7 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
   const searchText = params.q?.trim() || "";
   const limit = parseLimit(params.limit);
   const statusFilter = STATUS_OPTIONS.find((item) => item === params.status);
+  const confirmationFilter = CONFIRMATION_OPTIONS.find((item) => item === params.confirmation);
 
   const whereBase: Prisma.RegistrationWhereInput = {};
 
@@ -126,9 +135,20 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
   const where: Prisma.RegistrationWhereInput = {
     ...whereBase,
     ...(statusFilter ? { status: statusFilter } : {}),
+    ...(confirmationFilter ? { confirmationStatus: confirmationFilter } : {}),
   };
 
-  const [registrations, totalMatching, events, pendingCount, linkedCount, sentCount, checkedInCount] =
+  const [
+    registrations,
+    totalMatching,
+    events,
+    pendingCount,
+    linkedCount,
+    sentCount,
+    checkedInCount,
+    confirmationSentCount,
+    confirmationInvalidCount,
+  ] =
     await Promise.all([
       prisma.registration.findMany({
         where,
@@ -198,6 +218,18 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
           status: RegistrationStatus.CHECKED_IN,
         },
       }),
+      prisma.registration.count({
+        where: {
+          ...whereBase,
+          confirmationStatus: ConfirmationStatus.SENT,
+        },
+      }),
+      prisma.registration.count({
+        where: {
+          ...whereBase,
+          confirmationStatus: ConfirmationStatus.INVALID,
+        },
+      }),
     ]);
 
   return (
@@ -210,6 +242,7 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
             <p className="mt-1 text-sm text-white/85">
               Live view of captured participant registrations and ticket states.
             </p>
+            <p className="mt-1 text-xs text-white/80">All times shown in Phnom Penh time (UTC+7).</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
@@ -222,16 +255,18 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
           </div>
         </header>
 
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
           <MetricCard title="Matching Rows" value={totalMatching} tone="slate" />
           <MetricCard title="Pending" value={pendingCount} tone="slate" />
           <MetricCard title="Linked" value={linkedCount} tone="blue" />
           <MetricCard title="Ticket Sent" value={sentCount} tone="green" />
           <MetricCard title="Checked In" value={checkedInCount} tone="amber" />
+          <MetricCard title="Confirmation Sent" value={confirmationSentCount} tone="green" />
+          <MetricCard title="Confirmation Invalid" value={confirmationInvalidCount} tone="red" />
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <form method="get" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <form method="get" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <label className="grid min-w-0 gap-1 text-sm text-slate-700">
               Event
               <select
@@ -265,6 +300,22 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
             </label>
 
             <label className="grid min-w-0 gap-1 text-sm text-slate-700">
+              Confirmation
+              <select
+                name="confirmation"
+                defaultValue={confirmationFilter ?? ""}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              >
+                <option value="">All confirmations</option>
+                {CONFIRMATION_OPTIONS.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid min-w-0 gap-1 text-sm text-slate-700">
               Search
               <input
                 name="q"
@@ -283,7 +334,7 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
               />
             </label>
 
-            <div className="md:col-span-4 flex flex-wrap gap-2">
+            <div className="md:col-span-5 flex flex-wrap gap-2">
               <button
                 type="submit"
                 className="palette-cycle-button rounded-xl px-4 py-2.5 text-sm font-medium text-white"
@@ -311,6 +362,7 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
                   <th className="px-3 py-2 font-medium">Contact</th>
                   <th className="px-3 py-2 font-medium">Telegram</th>
                   <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2 font-medium">Confirmation</th>
                   <th className="px-3 py-2 font-medium">Ticket</th>
                   <th className="px-3 py-2 font-medium">Check-In</th>
                 </tr>
@@ -342,6 +394,18 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
                       </span>
                     </td>
                     <td className="px-3 py-2">
+                      <span
+                        className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${getConfirmationTone(
+                          row.confirmationStatus,
+                        )}`}
+                      >
+                        {row.confirmationStatus}
+                      </span>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {toDateTime(row.confirmationSentAt ?? null)}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">
                       <div>{row.ticket?.ticketCode || "-"}</div>
                       <div className="text-xs text-slate-500">Sent: {toDateTime(row.ticket?.sentAt ?? null)}</div>
                     </td>
@@ -350,7 +414,7 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
                 ))}
                 {registrations.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-6 text-center text-slate-500">
+                    <td colSpan={9} className="px-3 py-6 text-center text-slate-500">
                       No registrations matched your filter.
                     </td>
                   </tr>
@@ -367,7 +431,7 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
 type MetricCardProps = {
   title: string;
   value: number;
-  tone: "slate" | "blue" | "green" | "amber";
+  tone: "slate" | "blue" | "green" | "amber" | "red";
 };
 
 function MetricCard({ title, value, tone }: MetricCardProps) {
@@ -376,6 +440,7 @@ function MetricCard({ title, value, tone }: MetricCardProps) {
     blue: "border-blue-200 bg-blue-50 text-blue-900",
     green: "border-emerald-200 bg-emerald-50 text-emerald-900",
     amber: "border-amber-200 bg-amber-50 text-amber-900",
+    red: "border-rose-200 bg-rose-50 text-rose-900",
   };
 
   return (

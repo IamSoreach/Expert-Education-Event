@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ScanResult } from "@prisma/client";
+import { ConfirmationStatus, ScanResult } from "@prisma/client";
 import { redirect } from "next/navigation";
 
 import { StaffLogoutButton } from "@/components/staff-logout-button";
 import { isStaffSessionValid } from "@/lib/auth";
+import { formatDateTimePhnomPenh } from "@/lib/datetime";
 import { getEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
@@ -19,7 +20,16 @@ export default async function StaffDashboardPage() {
   const scanWindowStart = new Date();
   scanWindowStart.setHours(scanWindowStart.getHours() - 24);
 
-  const [todayTotal, todayValid, todayDuplicate, todayInvalid, todayRevoked, recentEvents] =
+  const [
+    todayTotal,
+    todayValid,
+    todayDuplicate,
+    todayInvalid,
+    todayRevoked,
+    confirmationSent,
+    confirmationInvalid,
+    recentEvents,
+  ] =
     await Promise.all([
       prisma.scanLog.count({
         where: {
@@ -60,6 +70,16 @@ export default async function StaffDashboardPage() {
           },
         },
       }),
+      prisma.registration.count({
+        where: {
+          confirmationStatus: ConfirmationStatus.SENT,
+        },
+      }),
+      prisma.registration.count({
+        where: {
+          confirmationStatus: ConfirmationStatus.INVALID,
+        },
+      }),
       prisma.event.findMany({
         where: { isActive: true },
         orderBy: { startAt: "asc" },
@@ -84,6 +104,7 @@ export default async function StaffDashboardPage() {
             <p className="mt-1 text-sm text-white/85">
               Operations overview and quick access to registration monitoring.
             </p>
+            <p className="mt-1 text-xs text-white/80">All times shown in Phnom Penh time (UTC+7).</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
@@ -96,12 +117,14 @@ export default async function StaffDashboardPage() {
           </div>
         </header>
 
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
           <MetricCard title="Total Scans (24h)" value={todayTotal} tone="slate" />
           <MetricCard title="Valid" value={todayValid} tone="green" />
           <MetricCard title="Duplicate" value={todayDuplicate} tone="amber" />
           <MetricCard title="Invalid" value={todayInvalid} tone="red" />
           <MetricCard title="Revoked" value={todayRevoked} tone="red" />
+          <MetricCard title="Confirmation Sent" value={confirmationSent} tone="green" />
+          <MetricCard title="Confirmation Invalid" value={confirmationInvalid} tone="red" />
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -121,7 +144,7 @@ export default async function StaffDashboardPage() {
                   <tr key={event.id} className="border-b border-slate-100">
                     <td className="py-2 pr-4">{event.name}</td>
                     <td className="py-2 pr-4">{event.code}</td>
-                    <td className="py-2 pr-4">{new Date(event.startAt).toLocaleString()}</td>
+                    <td className="py-2 pr-4">{formatDateTimePhnomPenh(event.startAt)}</td>
                     <td className="py-2 pr-4">{event.venue || "-"}</td>
                   </tr>
                 ))}

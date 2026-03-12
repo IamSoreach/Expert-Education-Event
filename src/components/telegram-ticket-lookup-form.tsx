@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import Script from "next/script";
 
 import { telegramTicketLookupPayloadSchema } from "@/lib/validation/telegram-ticket";
@@ -20,8 +20,7 @@ type TicketLookupResponse = {
   message?: string;
   participantName?: string;
   eventName?: string;
-  ticketCode?: string;
-  ticketDelivery?: "sent" | "resent";
+  confirmationDelivery?: "sent" | "invalid";
   error?: string;
 };
 
@@ -42,7 +41,7 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
     initData: null,
   });
 
-  function readTelegramInitDataFromUrl(): string | null {
+  const readTelegramInitDataFromUrl = useCallback((): string | null => {
     if (typeof window === "undefined") {
       return null;
     }
@@ -55,9 +54,9 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
 
     const value = raw.trim();
     return value.length > 0 ? value : null;
-  }
+  }, []);
 
-  function readTelegramContextSnapshot(): TelegramContext {
+  const readTelegramContextSnapshot = useCallback((): TelegramContext => {
     if (typeof window === "undefined") {
       return {
         isWebApp: false,
@@ -73,7 +72,7 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
       isWebApp: Boolean(telegramWebApp || initData),
       initData: initData || null,
     };
-  }
+  }, [readTelegramInitDataFromUrl]);
 
   async function waitForTelegramContext(maxWaitMs = 8000): Promise<TelegramContext> {
     const startedAt = Date.now();
@@ -128,7 +127,7 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [readTelegramContextSnapshot]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -147,17 +146,12 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
     const payload = {
       eventCode,
       phoneNumber,
-      telegramWebAppInitData: liveContext.initData ?? "",
-    };
-
-    if (!liveContext.initData) {
-      setServerError("Telegram session not detected. Open from bot /checkin and try again in 2 seconds.");
-      return;
+      telegramWebAppInitData: liveContext.initData ?? undefined,
     }
 
     const parsed = telegramTicketLookupPayloadSchema.safeParse(payload);
     if (!parsed.success) {
-      setServerError("Please enter a valid phone number and open this page from Telegram bot /checkin.");
+      setServerError("Please enter a valid phone number.");
       return;
     }
 
@@ -173,7 +167,7 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
 
       const data = (await response.json()) as TicketLookupResponse;
       if (!response.ok) {
-        throw new Error(data.error || "Could not send your ticket. Please try again.");
+        throw new Error(data.error || "Could not send confirmation. Please try again.");
       }
 
       setSuccess(data);
@@ -181,7 +175,7 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
       setServerError(
         submitError instanceof Error
           ? submitError.message
-          : "Could not send your ticket. Please try again.",
+          : "Could not send confirmation. Please try again.",
       );
     } finally {
       setIsSubmitting(false);
@@ -200,7 +194,8 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
             </p>
             <h1 className="mt-2 text-4xl font-semibold text-[var(--brand-ink)]">{eventName}</h1>
             <p className="mt-2 text-sm text-[var(--brand-gray)]">
-              Enter the same phone number used during registration. We will send your QR ticket to this chat.
+              Enter the same phone number used during registration. We will send registration confirmation if this
+              phone number is linked to Telegram.
             </p>
           </header>
 
@@ -210,15 +205,16 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
           >
             {telegramContext.isWebApp && telegramContext.initData ? (
               <p className="rounded-xl border border-[var(--brand-secondary)]/40 bg-[var(--brand-secondary)]/10 px-3 py-2 text-xs text-[var(--brand-ink)]">
-                Telegram session detected and verified.
+                Telegram session detected.
               </p>
             ) : telegramContext.isWebApp ? (
               <p className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                Telegram app detected, but secure session data is missing. Re-open from bot <b>/checkin</b>.
+                Telegram app detected, but secure session data is missing. We can still send if this phone number is
+                already linked.
               </p>
             ) : (
               <p className="rounded-xl border border-[var(--brand-secondary)]/40 bg-[var(--brand-secondary)]/10 px-3 py-2 text-xs text-[var(--brand-ink)]">
-                Open this page from the bot command inside Telegram.
+                You can use this page from browser or Telegram.
               </p>
             )}
 
@@ -244,9 +240,8 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
 
             {success ? (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-                <p className="font-medium">{success.message ?? "Ticket processed."}</p>
+                <p className="font-medium">{success.message ?? "Confirmation processed."}</p>
                 {success.participantName ? <p className="mt-1">Name: {success.participantName}</p> : null}
-                {success.ticketCode ? <p className="mt-1">Ticket: {success.ticketCode}</p> : null}
                 <a
                   href={expertChannelUrl}
                   target="_blank"
@@ -263,7 +258,7 @@ export function TelegramTicketLookupForm({ eventCode, eventName }: TelegramTicke
               disabled={isSubmitting}
               className="theme-button-primary inline-flex items-center justify-center px-4 py-2.5"
             >
-              {isSubmitting ? "Sending..." : "Send My Ticket"}
+              {isSubmitting ? "Sending..." : "Send Confirmation"}
             </button>
           </form>
         </div>

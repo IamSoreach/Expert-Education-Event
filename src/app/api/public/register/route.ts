@@ -1,5 +1,4 @@
-import { RegistrationStatus } from "@prisma/client";
-
+import { deliverRegistrationConfirmation } from "@/lib/confirmation";
 import { getEnv } from "@/lib/env";
 import { errorJson, tooManyRequestsJson } from "@/lib/http";
 import { createRequestId, logger } from "@/lib/logger";
@@ -8,7 +7,6 @@ import { linkRegistrationToTelegramFromMiniApp } from "@/lib/registrations";
 import { getRequestIdentifier } from "@/lib/request";
 import { buildTelegramDeepLink } from "@/lib/telegram";
 import { verifyTelegramWebAppInitData } from "@/lib/telegram-webapp";
-import { deliverTicketToTelegram, deliverTicketToTelegramChat } from "@/lib/ticketing";
 import { registrationPayloadSchema } from "@/lib/validation/registration";
 import {
   EventUnavailableError,
@@ -20,7 +18,7 @@ type MiniAppRegistrationState = {
   detected: boolean;
   verified: boolean;
   linked: boolean;
-  ticketDelivery: "not_attempted" | "sent" | "already_sent" | "failed";
+  confirmationDelivery: "not_attempted" | "sent" | "invalid";
   message: string | null;
 };
 
@@ -66,10 +64,7 @@ export async function POST(req: Request): Promise<Response> {
 
     const result = await submitRegistration(parsed.data);
     let responseStatus = result.registration.status;
-    let ticketReady =
-      result.registration.status === RegistrationStatus.TICKET_SENT ||
-      result.registration.status === RegistrationStatus.CHECKED_IN ||
-      result.registration.ticket?.sentAt !== null;
+    let confirmationSent = result.registration.confirmationStatus === "SENT";
     let miniApp: MiniAppRegistrationState | null = null;
 
     const initData = parsed.data.telegramWebAppInitData?.trim();
@@ -78,7 +73,7 @@ export async function POST(req: Request): Promise<Response> {
         detected: true,
         verified: false,
         linked: false,
-        ticketDelivery: "not_attempted",
+        confirmationDelivery: "not_attempted",
         message: null,
       };
 
@@ -102,52 +97,14 @@ export async function POST(req: Request): Promise<Response> {
           if (linkResult.status === "linked" || linkResult.status === "already_linked") {
             miniApp.linked = true;
             responseStatus = linkResult.registration.status;
-
-            try {
-              const delivery = await deliverTicketToTelegram(result.registration.id);
-              if (delivery.status === "sent") {
-                miniApp.ticketDelivery = "sent";
-              } else {
-                miniApp.ticketDelivery = "already_sent";
-                miniApp.message = "You already have a QR code in this Telegram chat. No new ticket was sent.";
-              }
-              ticketReady = true;
-            } catch (deliveryError) {
-              miniApp.ticketDelivery = "failed";
-              miniApp.message =
-                "Telegram was verified, but automatic ticket sending failed. Use the connect button to retry.";
-              logger.error("mini_app_ticket_delivery_failed", {
-                requestId,
-                registrationId: result.registration.id,
-                error: deliveryError instanceof Error ? deliveryError.message : String(deliveryError),
-              });
-            }
           } else if (
             linkResult.status === "already_linked_other_user" ||
             linkResult.status === "telegram_in_use"
           ) {
-            try {
-              const delivery = await deliverTicketToTelegramChat(
-                result.registration.id,
-                String(verified.user.id),
-              );
-              miniApp.ticketDelivery = delivery.status === "sent" ? "sent" : "already_sent";
-              miniApp.message =
-                linkResult.status === "telegram_in_use"
-                  ? "Ticket was sent to this chat, but Telegram account remains linked to a previous registration."
-                  : "Ticket was sent to this chat, but this registration remains linked to a different Telegram account.";
-              ticketReady = true;
-            } catch (deliveryError) {
-              miniApp.ticketDelivery = "failed";
-              miniApp.message =
-                "Telegram was verified, but automatic ticket sending failed. Use /checkin in the bot to retry.";
-              logger.error("mini_app_ticket_delivery_failed_conflict_fallback", {
-                requestId,
-                registrationId: result.registration.id,
-                linkStatus: linkResult.status,
-                error: deliveryError instanceof Error ? deliveryError.message : String(deliveryError),
-              });
-            }
+            miniApp.message =
+              linkResult.status === "telegram_in_use"
+                ? "Telegram account is linked to another registration."
+                : "This registration is linked to another Telegram account.";
           } else {
             miniApp.message =
               "Telegram session could not be matched automatically. Use the connect button on confirmation.";
@@ -164,6 +121,17 @@ export async function POST(req: Request): Promise<Response> {
       }
     }
 
+    const confirmationDelivery = await deliverRegistrationConfirmation(result.registration.id);
+    confirmationSent = confirmationDelivery.status === "sent";
+
+    if (miniApp) {
+      miniApp.confirmationDelivery = confirmationSent ? "sent" : "invalid";
+      if (!confirmationSent && !miniApp.message) {
+        miniApp.message =
+          "Registration was saved, but no Telegram account was linked to this phone number.";
+      }
+    }
+
     logger.info("registration_submitted", {
       requestId,
       registrationId: result.registration.id,
@@ -172,6 +140,7 @@ export async function POST(req: Request): Promise<Response> {
       miniAppDetected: Boolean(miniApp?.detected),
       miniAppVerified: Boolean(miniApp?.verified),
       miniAppLinked: Boolean(miniApp?.linked),
+      confirmationDelivery: confirmationDelivery.status,
     });
 
     return Response.json(
@@ -192,7 +161,8 @@ export async function POST(req: Request): Promise<Response> {
           organization: result.registration.participant.organization,
           notes: result.registration.participant.notes,
         },
-        ticketReady,
+        ticketReady: confirmationSent,
+        confirmationDelivery: confirmationDelivery.status,
         miniApp,
       },
       {

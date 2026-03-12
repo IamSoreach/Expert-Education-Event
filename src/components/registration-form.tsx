@@ -37,9 +37,10 @@ type RegisterApiResponse = {
     detected: boolean;
     verified: boolean;
     linked: boolean;
-    ticketDelivery: "not_attempted" | "sent" | "already_sent" | "failed";
+    confirmationDelivery: "not_attempted" | "sent" | "invalid";
     message: string | null;
   } | null;
+  confirmationDelivery?: "sent" | "invalid";
   error?: string;
 };
 

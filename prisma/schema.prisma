@@ -22,6 +22,12 @@ enum ScanResult {
   REVOKED
 }
 
+enum ConfirmationStatus {
+  PENDING
+  SENT
+  INVALID
+}
+
 model Event {
   id            String         @id @default(cuid())
   code          String         @unique @db.VarChar(64)
@@ -66,6 +72,9 @@ model Registration {
   eventId            String
   participantId      String
   status             RegistrationStatus  @default(PENDING)
+  confirmationStatus ConfirmationStatus  @default(PENDING)
+  confirmationSentAt DateTime?
+  confirmationError  String?             @db.VarChar(191)
   source             String?             @db.VarChar(64)
   event              Event               @relation(fields: [eventId], references: [id], onDelete: Restrict)
   participant        Participant         @relation(fields: [participantId], references: [id], onDelete: Restrict)
@@ -79,6 +88,7 @@ model Registration {
   @@index([eventId, status])
   @@index([participantId])
   @@index([status])
+  @@index([confirmationStatus])
 }
 
 model TelegramLinkToken {

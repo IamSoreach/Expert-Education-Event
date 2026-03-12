@@ -1,5 +1,6 @@
 import { RegistrationStatus } from "@prisma/client";
 
+import { deliverRegistrationConfirmation } from "@/lib/confirmation";
 import { getEnv } from "@/lib/env";
 import { errorJson, tooManyRequestsJson } from "@/lib/http";
 import { createRequestId, logger } from "@/lib/logger";
@@ -13,11 +14,6 @@ import { createRateLimitHeaders, createRateLimitKey, consumeRateLimit } from "@/
 import { linkRegistrationToTelegramFromMiniApp } from "@/lib/registrations";
 import { getRequestIdentifier } from "@/lib/request";
 import { verifyTelegramWebAppInitData } from "@/lib/telegram-webapp";
-import {
-  deliverTicketToTelegram,
-  deliverTicketToTelegramChat,
-  resendExistingTicketToTelegram,
-} from "@/lib/ticketing";
 import { telegramTicketLookupPayloadSchema } from "@/lib/validation/telegram-ticket";
 
 export const runtime = "nodejs";
@@ -56,14 +52,14 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
 
-    const verified = verifyTelegramWebAppInitData(
-      parsed.data.telegramWebAppInitData,
-      env.TELEGRAM_BOT_TOKEN,
-      env.TELEGRAM_WEBAPP_AUTH_MAX_AGE_SECONDS,
-    );
-    if (!verified?.user?.id) {
-      return errorJson("Telegram session verification failed. Please reopen from Telegram.", 401, undefined, rateHeaders);
-    }
+    const initData = parsed.data.telegramWebAppInitData?.trim();
+    const verified = initData
+      ? verifyTelegramWebAppInitData(
+          initData,
+          env.TELEGRAM_BOT_TOKEN,
+          env.TELEGRAM_WEBAPP_AUTH_MAX_AGE_SECONDS,
+        )
+      : null;
 
     const normalizedPhone = normalizePhoneNumber(parsed.data.phoneNumber);
     if (!isReasonablePhoneNumber(normalizedPhone)) {
@@ -110,42 +106,23 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
 
-    const linkResult = await linkRegistrationToTelegramFromMiniApp(registration.id, verified.user);
-    if (linkResult.status === "invalid_registration" || linkResult.status === "invalid_user") {
-      return errorJson("Could not process this request.", 400, undefined, rateHeaders);
-    }
-
-    let ticketDelivery: "sent" | "resent";
-    let ticketCode: string;
-
-    if (
-      linkResult.status === "already_linked_other_user" ||
-      linkResult.status === "telegram_in_use"
-    ) {
-      const directDelivery = await deliverTicketToTelegramChat(
-        registration.id,
-        String(verified.user.id),
-      );
-      ticketDelivery = directDelivery.status === "sent" ? "sent" : "resent";
-      ticketCode = directDelivery.ticket.ticketCode;
-    } else {
-      const delivery = await deliverTicketToTelegram(registration.id);
-
-      if (delivery.status === "already_sent") {
-        const resent = await resendExistingTicketToTelegram(registration.id);
-        ticketDelivery = "resent";
-        ticketCode = resent.ticketCode;
-      } else {
-        ticketDelivery = "sent";
-        ticketCode = delivery.ticket.ticketCode;
+    if (verified?.user?.id) {
+      const linkResult = await linkRegistrationToTelegramFromMiniApp(registration.id, verified.user);
+      if (linkResult.status === "invalid_registration" || linkResult.status === "invalid_user") {
+        return errorJson("Could not process this request.", 400, undefined, rateHeaders);
       }
     }
+
+    const confirmationDelivery = await deliverRegistrationConfirmation(registration.id);
+    const deliveryState =
+      confirmationDelivery.status === "sent" ? "sent" : "invalid";
 
     logger.info("miniapp_ticket_lookup_success", {
       requestId,
       registrationId: registration.id,
       eventCode: parsed.data.eventCode,
-      ticketDelivery,
+      confirmationDelivery: deliveryState,
+      miniAppVerified: Boolean(verified?.user?.id),
     });
 
     return Response.json(
@@ -155,12 +132,11 @@ export async function POST(req: Request): Promise<Response> {
         eventCode: registration.event.code,
         eventName: registration.event.name,
         participantName: registration.participant.fullName,
-        ticketCode,
-        ticketDelivery,
+        confirmationDelivery: deliveryState,
         message:
-          ticketDelivery === "sent"
-            ? "Your ticket was sent in this chat."
-            : "Your existing ticket was re-sent in this chat.",
+          deliveryState === "sent"
+            ? "Registration confirmation was sent in this chat."
+            : "Registration was found, but this phone number is not linked to Telegram yet.",
       },
       { headers: rateHeaders },
     );
@@ -174,7 +150,7 @@ export async function POST(req: Request): Promise<Response> {
       error: error instanceof Error ? error.message : String(error),
     });
     return errorJson(
-      "Could not send your ticket right now. Please try again shortly.",
+      "Could not send confirmation right now. Please try again shortly.",
       500,
       undefined,
       rateHeaders,

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { formatDateTimePhnomPenh } from "@/lib/datetime";
 
 type ScanStatus = "VALID" | "DUPLICATE" | "INVALID" | "REVOKED";
 
@@ -242,7 +243,7 @@ export function StaffCheckInClient() {
               </p>
               <p>Email: {result.participant.email}</p>
               <p>Ticket: {result.participant.ticketCode}</p>
-              {result.checkedInAt ? <p>Checked in at: {new Date(result.checkedInAt).toLocaleString()}</p> : null}
+              {result.checkedInAt ? <p>Checked in at (Phnom Penh): {formatDateTimePhnomPenh(result.checkedInAt)}</p> : null}
             </div>
           ) : null}
         </section>
@@ -256,7 +257,7 @@ export function StaffCheckInClient() {
           <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
-                <th className="py-2 pr-4 font-medium">Time</th>
+                <th className="py-2 pr-4 font-medium">Time (Phnom Penh)</th>
                 <th className="py-2 pr-4 font-medium">Status</th>
                 <th className="py-2 pr-4 font-medium">Event</th>
                 <th className="py-2 pr-4 font-medium">Participant</th>
@@ -268,7 +269,7 @@ export function StaffCheckInClient() {
             <tbody>
               {logs.map((log) => (
                 <tr key={log.id} className="border-b border-slate-100">
-                  <td className="py-2 pr-4">{new Date(log.attemptedAt).toLocaleString()}</td>
+                  <td className="py-2 pr-4">{formatDateTimePhnomPenh(log.attemptedAt)}</td>
                   <td className="py-2 pr-4">{log.status}</td>
                   <td className="py-2 pr-4">{log.eventName || "-"}</td>
                   <td className="py-2 pr-4">{log.registrationName || "-"}</td>
