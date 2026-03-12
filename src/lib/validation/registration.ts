@@ -16,7 +16,7 @@ export const registrationPayloadSchema = z.object({
     .trim()
     .min(6)
     .max(40)
-    .regex(/^[\d+\s().-]+$/, "Phone number contains invalid characters."),
+    .regex(/^[0-9\u17E0-\u17E9+\s().-]+$/, "Phone number contains invalid characters."),
   email: z
     .string()
     .trim()

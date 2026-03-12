@@ -7,7 +7,8 @@ export const telegramTicketLookupPayloadSchema = z.object({
     .trim()
     .min(6)
     .max(40)
-    .regex(/^[\d+\s().-]+$/, "Phone number contains invalid characters."),
+    // Accept Khmer digits too; we normalize them before persistence/lookup.
+    .regex(/^[0-9\u17E0-\u17E9+\s().-]+$/, "Phone number contains invalid characters."),
   telegramWebAppInitData: z.string().trim().min(10).max(4096),
 });
 

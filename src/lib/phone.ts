@@ -1,5 +1,24 @@
+const KHMER_DIGIT_TO_ASCII: Record<string, string> = {
+  "\u17E0": "0",
+  "\u17E1": "1",
+  "\u17E2": "2",
+  "\u17E3": "3",
+  "\u17E4": "4",
+  "\u17E5": "5",
+  "\u17E6": "6",
+  "\u17E7": "7",
+  "\u17E8": "8",
+  "\u17E9": "9",
+};
+
+function toAsciiDigits(input: string): string {
+  return Array.from(input)
+    .map((char) => KHMER_DIGIT_TO_ASCII[char] ?? char)
+    .join("");
+}
+
 export function normalizePhoneNumber(input: string): string {
-  const trimmed = input.trim();
+  const trimmed = toAsciiDigits(input).trim();
   if (!trimmed) {
     return "";
   }
