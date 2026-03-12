@@ -358,7 +358,7 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
             <table className="min-w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500">
-                  <th className="px-3 py-2 font-medium">Submitted</th>
+                  <th className="px-3 py-2 font-medium">Submitted (Phnom Penh GMT+7)</th>
                   <th className="px-3 py-2 font-medium">Event</th>
                   <th className="px-3 py-2 font-medium">Participant</th>
                   <th className="px-3 py-2 font-medium">Contact</th>
