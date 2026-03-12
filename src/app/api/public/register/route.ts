@@ -66,6 +66,7 @@ export async function POST(req: Request): Promise<Response> {
     let responseStatus = result.registration.status;
     let confirmationSent = result.registration.confirmationStatus === "SENT";
     let miniApp: MiniAppRegistrationState | null = null;
+    let preferredConfirmationChatId: string | number | null = null;
 
     const initData = parsed.data.telegramWebAppInitData?.trim();
     if (initData) {
@@ -88,6 +89,7 @@ export async function POST(req: Request): Promise<Response> {
           miniApp.message =
             "Telegram session could not be verified automatically. Use the connect button on confirmation.";
         } else {
+          preferredConfirmationChatId = verified.user.id;
           miniApp.verified = true;
           const linkResult = await linkRegistrationToTelegramFromMiniApp(
             result.registration.id,
@@ -121,7 +123,9 @@ export async function POST(req: Request): Promise<Response> {
       }
     }
 
-    const confirmationDelivery = await deliverRegistrationConfirmation(result.registration.id);
+    const confirmationDelivery = await deliverRegistrationConfirmation(result.registration.id, {
+      preferredChatId: preferredConfirmationChatId,
+    });
     confirmationSent = confirmationDelivery.status === "sent";
 
     if (miniApp) {

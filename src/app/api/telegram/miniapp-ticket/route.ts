@@ -113,7 +113,9 @@ export async function POST(req: Request): Promise<Response> {
       }
     }
 
-    const confirmationDelivery = await deliverRegistrationConfirmation(registration.id);
+    const confirmationDelivery = await deliverRegistrationConfirmation(registration.id, {
+      preferredChatId: verified?.user?.id ?? null,
+    });
     const deliveryState =
       confirmationDelivery.status === "sent" ? "sent" : "invalid";
 
