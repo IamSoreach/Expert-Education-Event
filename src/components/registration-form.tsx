@@ -376,13 +376,6 @@ export function RegistrationForm({
       telegramWebAppInitData: liveContext.isWebApp ? liveContext.initData ?? undefined : undefined,
     };
 
-    if (entryPoint === "telegram" && !liveContext.initData) {
-      setServerError(
-        "Telegram session is still loading. Please open this page from the bot and try again in 2 seconds.",
-      );
-      return;
-    }
-
     const validated = validateClient(livePayload);
     if (!validated) {
       return;
