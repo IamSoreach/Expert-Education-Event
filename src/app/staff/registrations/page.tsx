@@ -345,6 +345,13 @@ export default async function StaffRegistrationsPage({ searchParams }: StaffRegi
               >
                 Apply Filters
               </button>
+              <button
+                type="submit"
+                formAction="/api/staff/registrations/export"
+                className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2.5 text-sm font-medium text-cyan-800 transition hover:bg-cyan-100"
+              >
+                Export Excel
+              </button>
               <Link
                 href="/staff/registrations"
                 className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
